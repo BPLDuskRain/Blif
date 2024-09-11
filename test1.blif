@@ -1,8 +1,10 @@
 .model sample
-.inputs v3 v6 j u78
+.inputs v3 v6 j u78 v
 .outputs v13.15
+.names v
+0
 .names v3 v6 j u78 v13.15
-1--0 1
--1-1 1
-0-11 1
+0--1 0
+-0-0 0
+1-00 0
 .end

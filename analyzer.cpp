@@ -46,7 +46,6 @@ void Analyzer::analyze() {
 			}
 			//解析names
 			else if (substring == "names") {
-				//symbols
 				std::string result;
 				//names
 				std::vector<std::string> names;
@@ -72,25 +71,40 @@ void Analyzer::analyze() {
 						break;
 					}
 
-					for (int namePos = 0, linePos = 0; namePos < names.size() || linePos < it->length(); namePos++, linePos++) {
+					for (int namePos = 0, linePos = 0; namePos < names.size() || linePos < it->size(); namePos++, linePos++) {
+						//确定是析取还是合取
+						size_t space = it->find(" ");
+						if (space != std::string::npos) {
+							flag = it->at(space + 1);
+						}
+						//对于直接赋值语句
+						else if (it->size() == 1) {
+							tmpExp.push_back(*it);
+							goto Assign;
+						}
+
+						//读到空格停止
 						if (it->at(linePos) == ' ') {
 							linePos++;
 							break;
 						}
-
+						//根据flag判定非门
 						if (it->at(linePos) != '-') {
-							if (it->at(linePos) == '0') {
+							if ((it->at(linePos) == '0' && flag == '1') || (it->at(linePos) == '1' && flag == '0')) {
 								tmpExp.push_back("!");
 							}
+							//同行均用与门
 							tmpExp.push_back(names[namePos]);
 							tmpExp.push_back(" & ");
 						}
 						/*std::cout << names[namePos] << " " << it->at(linePos) << std::endl;*/
 					}
+					//行间用或门
 					tmpExp.pop_back();
 					tmpExp.push_back(" | ");
 				}
 				tmpExp.pop_back();
+			Assign:
 
 				//组合表达式
 				std::ostringstream oss;
@@ -112,7 +126,7 @@ void Analyzer::writeV(std::string filename) {
 	//module行
 	outfilestream << "module " << model
 		<< "(clk, rst, ";
-	int size = inputs.size();
+	size_t size = inputs.size();
 	for (std::string p : outputs) {
 		outfilestream << p << ", ";
 	}

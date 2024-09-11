@@ -8,6 +8,7 @@
 class Analyzer {
 private:
 	std::vector<std::string> tmpLines;
+	char flag;
 
 	bool reOutput(std::string name);
 	bool reInput(std::string name);
