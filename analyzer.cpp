@@ -47,9 +47,6 @@ void Analyzer::analyze() {
 			//解析names
 			else if (substring == "names") {
 				//symbols
-				size_t andNum;
-				size_t orNum;
-				std::vector<int> notPos;
 				std::string result;
 				//names
 				std::vector<std::string> names;
@@ -65,10 +62,9 @@ void Analyzer::analyze() {
 				}
 				result = name;
 				names.pop_back();
-				
 
 				//读入真值表
-				orNum = -1;
+				std::vector<std::string> tmpExp;
 				while (true) {
 					it++;
 					if (it->at(0) == '.') {
@@ -76,35 +72,32 @@ void Analyzer::analyze() {
 						break;
 					}
 
-					size_t pos = it->find('0');
-					if (pos != std::string::npos) {
-						notPos.push_back(pos);
+					for (int namePos = 0, linePos = 0; namePos < names.size() || linePos < it->length(); namePos++, linePos++) {
+						if (it->at(linePos) == ' ') {
+							linePos++;
+							break;
+						}
+
+						if (it->at(linePos) != '-') {
+							if (it->at(linePos) == '0') {
+								tmpExp.push_back("!");
+							}
+							tmpExp.push_back(names[namePos]);
+							tmpExp.push_back(" & ");
+						}
+						/*std::cout << names[namePos] << " " << it->at(linePos) << std::endl;*/
 					}
-					orNum++;
+					tmpExp.pop_back();
+					tmpExp.push_back(" | ");
 				}
-				andNum = names.size() - 1 - orNum;
+				tmpExp.pop_back();
 
 				//组合表达式
 				std::ostringstream oss;
 				oss << result << " = ";
 
-				for (int i = 0; i < names.size(); i++) {
-					if (i < notPos.size()) {
-						if (notPos[i] == i) {
-							oss << '!';
-						}
-					}
-
-					oss << names[i];
-
-					if (andNum != 0) {
-						oss << " & ";
-						andNum--;
-					}
-					else if (orNum != 0) {
-						oss << " | ";
-						orNum--;
-					}
+				for (int expPos = 0; expPos < tmpExp.size(); expPos++) {
+					oss << tmpExp[expPos];
 				}
 				expressions.push_back(oss.str());
 			}
