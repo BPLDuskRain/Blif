@@ -3,11 +3,17 @@
 # include <sstream>
 # include <string>
 
-# include "analyzer.h"
+# include "Analyzer.h"
+# include "Analyser.h"
 
 int main() {
-	Analyzer analyzer;
-	analyzer.readBlif("test1.blif");
-	analyzer.analyze();
-	analyzer.writeV("test1.v");
+	//Analyzer analyzer;
+	//analyzer.readBlif("test1.blif");
+	//analyzer.analyze();
+	//analyzer.writeV("test1.v");
+
+	Analyser analyser;
+	analyser.readBlif("test2.v");
+	analyser.analyse();
+	analyser.writeV("test2.blif");
 }

@@ -1,4 +1,4 @@
-# include "analyzer.h"
+# include "Analyzer.h"
 
 void Analyzer::readBlif(std::string filename) {
 	std::ifstream infilestream(filename);

@@ -18,12 +18,18 @@
     <ClCompile Include="main.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="analyzer.cpp">
+    <ClCompile Include="Analyzer.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Analyser.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="analyzer.h">
+    <ClInclude Include="Analyzer.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Analyser.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
