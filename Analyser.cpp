@@ -10,7 +10,7 @@ int Analyser::Name::inParameters(std::string para) {
 	return NOTFOUND;
 }
 
-void Analyser::readBlif(std::string filename) {
+void Analyser::readV(std::string filename) {
 	std::ifstream infilestream(filename);
 
 	if (infilestream.is_open()) {
@@ -72,7 +72,7 @@ void Analyser::analyse() {
 	}
 }
 
-void Analyser::writeV(std::string filename) {
+void Analyser::writeBlif(std::string filename) {
 	std::ofstream outfilestream(filename);
 
 	outfilestream << ".model " << module << std::endl;

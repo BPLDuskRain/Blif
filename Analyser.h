@@ -36,7 +36,7 @@ public:
 	std::vector<std::string> outputs;
 	std::vector<Name> names;
 
-	void readBlif(std::string filename);
+	void readV(std::string filename);
 	void analyse();
-	void writeV(std::string filename);
+	void writeBlif(std::string filename);
 };
