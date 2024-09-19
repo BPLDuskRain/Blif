@@ -14,7 +14,6 @@ wire u78;
 wire v;
 wire v13.15;
 
-assign v = 0;
-assign v13.15 = v3 & !u78 | v6 & u78 | !v3 & j & u78;
+assign v13.15 = v3 & u78 | v6 & u78 | v3 & j & u78;
 
 endmodule

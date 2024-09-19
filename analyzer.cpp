@@ -1,5 +1,32 @@
 # include "Analyzer.h"
 
+bool Analyzer::reOutput(const wireType& name) {
+	for (std::string p : outputs) {
+		if (p == name) {
+			return true;
+		}
+	}
+	return false;
+}
+
+bool Analyzer::reInput(const wireType& name) {
+	for (std::string p : inputs) {
+		if (p == name) {
+			return true;
+		}
+	}
+	return false;
+}
+
+bool Analyzer::reMiddle(const wireType& name) {
+	for (std::string p : middles) {
+		if (p == name) {
+			return true;
+		}
+	}
+	return false;
+}
+
 void Analyzer::readBlif(std::string filename) {
 	std::ifstream infilestream(filename);
 
@@ -91,13 +118,12 @@ void Analyzer::analyze() {
 						//根据flag判定非门
 						if (it->at(linePos) != '-') {
 							if ((it->at(linePos) == '0' && flag == '1') || (it->at(linePos) == '1' && flag == '0')) {
-								tmpExp.push_back("!");
+								
 							}
 							//同行均用与门
 							tmpExp.push_back(names[namePos]);
 							tmpExp.push_back(" & ");
 						}
-						/*std::cout << names[namePos] << " " << it->at(linePos) << std::endl;*/
 					}
 					//行间用或门
 					tmpExp.pop_back();
@@ -177,29 +203,151 @@ void Analyzer::writeV(std::string filename) {
 	outfilestream.close();
 }
 
-bool Analyzer::reOutput(std::string name) {
-	for (std::string p : outputs) {
-		if (p == name) {
-			return true;
+void Analyzer::toMidForm() {
+	for (auto it = tmpLines.begin(); it != tmpLines.end(); it++) {
+		if (it->at(0) == '.') {
+			size_t divider = it->find(' ');
+			if (divider == std::string::npos) {
+				std::string substring = it->substr(1);
+				if (substring == "end") return;
+				std::cout << "Delimiter not found!\n";
+				return;
+			}
+			std::string substring = it->substr(1, divider - 1);
+			//找inputs
+			if (substring == "inputs") {
+				std::istringstream tmpStream(it->substr(divider + 1));
+				std::string input;
+				while (std::getline(tmpStream, input, ' ')) {
+					inputs.push_back(input);
+
+				}
+			}
+			//找outputs
+			else if (substring == "outputs") {
+				std::istringstream tmpStream(it->substr(divider + 1));
+				std::string output;
+				while (std::getline(tmpStream, output, ' ')) {
+					outputs.push_back(output);
+				}
+			}
+			//解析names
+			else if (substring == "names") {
+				Gate gate;
+				//read temp strings
+				std::istringstream tmpStream(it->substr(divider + 1));
+				std::string name;
+				while (std::getline(tmpStream, name, ' ')) {
+					gate.pres.push_back(name);
+				}
+				gate.pres.pop_back();
+				gate.suc = name;
+
+				//读入真值表
+				it++;
+				if (it->find('-') != std::string::npos) {
+					gate.gateType = OR;
+				}
+				else if (it->size() == 3) {
+					gate.gateType = NOT;
+				}
+				else {
+					gate.gateType = AND;
+				}
+
+				//确定轮次
+				cycleConfirm(gate);
+
+				tmpGates.push_back(gate);
+			}
 		}
 	}
-	return false;
 }
 
-bool Analyzer::reInput(std::string name) {
-	for (std::string p : inputs) {
-		if (p == name) {
-			return true;
-		}
+void Analyzer::cycleConfirm(Gate& gate) {
+	if (allInInputs(gate)) {
+		gate.cycle = 0;
 	}
-	return false;
+	else {
+		gate.cycle = maxCircle(gate) + 1;
+	}
 }
 
-bool Analyzer::reMiddle(std::string name) {
-	for (std::string p : middles) {
-		if (p == name) {
-			return true;
+bool Analyzer::allInInputs(const Gate& gate) {
+	for (auto pre : gate.pres) {
+		if (!reInput(pre)) {
+			return false;
 		}
 	}
-	return false;
+	return true;
+}
+
+int Analyzer::maxCircle(const Gate& gate) {
+	int max = 0;
+	for (auto pre : gate.pres) {
+		for (auto tmpGate : tmpGates) {
+			if (pre == tmpGate.suc) {
+				if (tmpGate.cycle > max) {
+					max = tmpGate.cycle;
+				}
+			}
+		}
+	}
+	return max;
+}
+
+void Analyzer::writeMidForm() {
+	std::cout << "PIs :";
+	for (int i = 0; i < inputs.size(); i++) {
+		std::cout << inputs[i];
+		if (i + 1 < inputs.size()) {
+			std::cout << ", ";
+		}
+		else {
+			std::cout << "  ";
+		}
+	}
+	std::cout << "Output :";
+	for (int i = 0; i < outputs.size(); i++) {
+		std::cout << outputs[i];
+		if (i + 1 < outputs.size()) {
+			std::cout << ", ";
+		}
+		else {
+			std::cout << " \n";
+		}
+	}
+	int max = 0;
+	for (auto p : tmpGates) {
+		if (p.cycle + 1 > max) {
+			max = p.cycle + 1;
+		}
+	}
+	std::cout << "Total " << max << " Cycles\n";
+	std::vector<std::array<std::vector<wireType>, 3>> cycles;
+	for (int i = 0; i < max; i++) {
+		std::array<std::vector<wireType>, 3> gateNums;
+		for (auto p : tmpGates) {
+			if (p.cycle == i) {
+				gateNums[p.gateType - 1].push_back(p.suc);
+			}
+		}
+		cycles.push_back(gateNums);
+	}
+	for (int i = 0; i < max; i++) {
+		std::cout << "Cycle " << i << ':';
+		for (int j = 0; j < 3; j++) {
+			std::cout << "{ ";
+			for (wireType p : cycles[i][j]) {
+				std::cout << p << ' ';
+			}
+			std::cout << '}';
+			if (j < 2) {
+				std::cout << ',';
+			}
+			else {
+				std::cout << std::endl;
+			}
+		}
+	}
 }

@@ -154,7 +154,7 @@ void Analyser::assignAnalyse(std::string assign) {
 		expAnalyse(exp);//第一次解析exp，递归拆出变量名
 		formString.assign(name.parameters.size(), '-');//用于和变量名一一相对的数组
 
-		formGenarate(exp, 1);//1或0表示范式类型，第二次解析exp，递归给出表达式
+		formGenerate(exp, 1);//1或0表示范式类型，第二次解析exp，递归给出表达式
 		name.form = formStream.str();
 		formStream.str("");//清空范式，下次调用备用
 	}
@@ -210,7 +210,7 @@ void Analyser::expAnalyse(std::string exp) {
 	}
 }
 
-void Analyser::formGenarate(std::string exp, int flag) {
+void Analyser::formGenerate(std::string exp, int flag) {
 	size_t orGate;
 	size_t andGate;
 	size_t notGate;
@@ -220,11 +220,11 @@ void Analyser::formGenarate(std::string exp, int flag) {
 	if (orGate != std::string::npos) {
 		std::string subExp1 = exp.substr(0, orGate - 1);
 		std::string subExp2 = exp.substr(orGate + 2);
-		formGenarate(subExp1, flag);//解析|前半部分，并输出到流中
+		formGenerate(subExp1, flag);//解析|前半部分，并输出到流中
 		std::string str(formString.begin(), formString.end());
 		formString.assign(name.parameters.size(), '-');
 		formStream << str << " " << flag << std::endl;
-		formGenarate(subExp2, flag);
+		formGenerate(subExp2, flag);
 	}
 	//无或门
 	else {
@@ -232,8 +232,8 @@ void Analyser::formGenarate(std::string exp, int flag) {
 		if (andGate != std::string::npos) {
 			std::string subExp1 = exp.substr(0, andGate - 1);
 			std::string subExp2 = exp.substr(andGate + 2);
-			formGenarate(subExp1, flag);
-			formGenarate(subExp2, flag);
+			formGenerate(subExp1, flag);
+			formGenerate(subExp2, flag);
 		}
 		//无与门
 		else {
@@ -252,7 +252,7 @@ void Analyser::formGenarate(std::string exp, int flag) {
 				default:
 					break;
 				}
-				formGenarate(subExp, flag);
+				formGenerate(subExp, flag);
 			}
 			else {
 				//最后一个部分处理

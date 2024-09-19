@@ -28,7 +28,7 @@ private:
 	int inTmpParas(std::string);
 	void assignAnalyse(std::string);
 	void expAnalyse(std::string);
-	void formGenarate(std::string, int flag);
+	void formGenerate(std::string, int flag);
 public:
 
 	std::string module;

@@ -4,24 +4,43 @@
 # include <sstream>
 # include <string>
 # include <vector>
+# include <array>
+
+using wireType = std::string;
 
 class Analyzer {
 private:
-	std::vector<std::string> tmpLines;
-	char flag;
+	enum GateType{
+		UNKNOWN, AND, OR, NOT
+	};
+	struct Gate {
+		std::vector<wireType> pres;
+		GateType gateType = UNKNOWN;
+		int cycle;
+		wireType suc;
+	};
 
-	bool reOutput(std::string name);
-	bool reInput(std::string name);
-	bool reMiddle(std::string name);
+	std::vector<std::string> tmpLines;
+	char flag; 
+	std::vector<Gate> tmpGates;
+
+	bool reOutput(const wireType&);
+	bool reInput(const wireType&);
+	bool reMiddle(const wireType&);
+	void cycleConfirm(Gate&);
+	bool allInInputs(const Gate&);
+	int maxCircle(const Gate&);
 public:
 	std::string model;
-	std::vector<std::string> inputs;
-	std::vector<std::string> outputs;
+	std::vector<wireType> inputs;
+	std::vector<wireType> outputs;
 	std::string clock;
-	std::vector<std::string> middles;
+	std::vector<wireType> middles;
 	std::vector<std::string> expressions;
 
 	void readBlif(std::string filename);
 	void analyze();
 	void writeV(std::string filename);
+	void toMidForm();
+	void writeMidForm();
 };
