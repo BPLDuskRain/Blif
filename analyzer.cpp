@@ -254,46 +254,120 @@ void Analyzer::toMidForm() {
 				else {
 					gate.gateType = AND;
 				}
-
-				//确定轮次
-				cycleConfirm(gate);
-
-				tmpGates.push_back(gate);
+				gate.cycle = 0;
+				tmpGates.insert({ name, gate });
 			}
 		}
 	}
 }
 
-void Analyzer::cycleConfirm(Gate& gate) {
-	if (allInInputs(gate)) {
-		gate.cycle = 0;
-	}
-	else {
-		gate.cycle = maxCircle(gate) + 1;
+void Analyzer::cycleConfirm_ASAP() {
+	for (auto pairP = tmpGates.begin(); pairP != tmpGates.end(); ++pairP) {
+		pairP->second.cycle = getGateCycle_ASAP(pairP->second);
 	}
 }
 
-bool Analyzer::allInInputs(const Gate& gate) {
+int Analyzer::getGateCycle_ASAP(const Gate& gate) {
+	int max = -1;
+	if (reInput(gate.suc)) {
+		return 0;
+	}
+	for (auto pre : gate.pres) {
+		if (tmpGates.find(pre) != tmpGates.end()) {
+			int tmp = getGateCycle_ASAP(tmpGates[pre]);
+			if (tmp > max) {
+				max = tmp;
+			}
+		}
+	}
+	return max + 1;
+}
+
+void Analyzer::cycleConfirm_ALAP() {
+	int maxCycle = getGatesCycle() - 1;
+	for (auto gateP = tmpGates.begin(); gateP != tmpGates.end(); ++gateP) {
+		gateP->second.cycle = maxCycle;
+	}
+
+	for (auto outputP = outputs.begin(); outputP < outputs.end(); ++outputP) {
+		setGateCycle_ALAP(tmpGates[*outputP], maxCycle);
+	}
+}
+
+int Analyzer::getGatesCycle() {
+	int max = 0;
+	for (auto p = outputs.begin(); p < outputs.end(); ++p) {
+		int tmp = getGateCycle_ASAP(tmpGates[*p]);
+		if (tmp > max) {
+			max = tmp;
+		}
+	}
+	return max + 1;
+}
+
+void Analyzer::setGateCycle_ALAP(Gate& gate, int cy) {
+	if (cy < gate.cycle) {
+		gate.cycle = cy;
+	}
 	for (auto pre : gate.pres) {
 		if (!reInput(pre)) {
-			return false;
+			setGateCycle_ALAP(tmpGates[pre], cy - 1);
 		}
 	}
-	return true;
 }
 
-int Analyzer::maxCircle(const Gate& gate) {
-	int max = 0;
-	for (auto pre : gate.pres) {
-		for (auto tmpGate : tmpGates) {
-			if (pre == tmpGate.suc) {
-				if (tmpGate.cycle > max) {
-					max = tmpGate.cycle;
-				}
+void Analyzer::cycleConfirm_Hu(int limit) {
+	cycleConfirm_ALAP();
+	std::vector<Gate*> huArray = std::vector<Gate*>();
+	for (auto gateP = tmpGates.begin(); gateP != tmpGates.end(); ++gateP) {
+		huArray.push_back(&(gateP->second));
+	}
+	std::sort(huArray.begin(), huArray.end(), [](const Gate* a, const Gate* b) -> bool {
+		return a->cycle < b->cycle;
+	});
+
+	int lmt = limit;
+	int cycle = 0;
+	std::set<Gate*> set = std::set<Gate*>();
+	for (auto index = huArray.begin(); index < huArray.end();) {
+		if (lmt > 0) {
+			//资源足够？
+			if (!preInSet(set, *index)) {
+				//前驱不在set中，即可工作
+				(*index)->cycle = cycle;
+				set.insert(*index);
+				--lmt;
+				++index;
 			}
 		}
+		else {
+			//资源不足加轮次
+			set.clear();
+			++cycle;
+			lmt = limit;
+		}
 	}
-	return max;
+}
+
+bool Analyzer::preInSet(const std::set<Gate*>& set, const Gate* gate) {
+	for (auto pre : gate->pres) {
+		if (set.find(&tmpGates[pre]) != set.end()) {
+			return true;
+		}
+	}
+	return false;
+}
+
+void Analyzer::cycleConfirm_MLRCS() {
+	for (auto pair = tmpGates.begin(); pair != tmpGates.end(); ++pair) {
+		//pair->second.cycle = ? ;
+	}
+}
+
+void Analyzer::cycleConfirm_MRLCS() {
+	for (auto pair = tmpGates.begin(); pair != tmpGates.end(); ++pair) {
+		//pair->second.cycle = ? ;
+	}
 }
 
 void Analyzer::writeMidForm() {
@@ -317,10 +391,11 @@ void Analyzer::writeMidForm() {
 			std::cout << " \n";
 		}
 	}
+
 	int max = 0;
-	for (auto p : tmpGates) {
-		if (p.cycle + 1 > max) {
-			max = p.cycle + 1;
+	for (auto pair : tmpGates) {
+		if (pair.second.cycle + 1> max) {
+			max = pair.second.cycle + 1;
 		}
 	}
 	std::cout << "Total " << max << " Cycles\n";
@@ -328,8 +403,8 @@ void Analyzer::writeMidForm() {
 	for (int i = 0; i < max; i++) {
 		std::array<std::vector<wireType>, 3> gateNums;
 		for (auto p : tmpGates) {
-			if (p.cycle == i) {
-				gateNums[p.gateType - 1].push_back(p.suc);
+			if (p.second.cycle == i) {
+				gateNums[p.second.gateType - 1].push_back(p.second.suc);
 			}
 		}
 		cycles.push_back(gateNums);

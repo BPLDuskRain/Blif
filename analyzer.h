@@ -5,6 +5,9 @@
 # include <string>
 # include <vector>
 # include <array>
+# include <set>
+# include <map>
+# include <algorithm>
 
 using wireType = std::string;
 
@@ -16,20 +19,21 @@ private:
 	struct Gate {
 		std::vector<wireType> pres;
 		GateType gateType = UNKNOWN;
-		int cycle;
+		int cycle = -1;
 		wireType suc;
 	};
 
 	std::vector<std::string> tmpLines;
 	char flag; 
-	std::vector<Gate> tmpGates;
+	std::map<std::string, Gate> tmpGates;
 
 	bool reOutput(const wireType&);
 	bool reInput(const wireType&);
 	bool reMiddle(const wireType&);
-	void cycleConfirm(Gate&);
-	bool allInInputs(const Gate&);
-	int maxCircle(const Gate&);
+	int getGateCycle_ASAP(const Gate&);
+	int getGatesCycle();
+	void setGateCycle_ALAP(Gate&, int);
+	bool preInSet(const std::set<Gate*>&, const Gate*);
 public:
 	std::string model;
 	std::vector<wireType> inputs;
@@ -42,5 +46,10 @@ public:
 	void analyze();
 	void writeV(std::string filename);
 	void toMidForm();
+	void cycleConfirm_ASAP();
+	void cycleConfirm_ALAP();
+	void cycleConfirm_Hu(int);
+	void cycleConfirm_MLRCS();
+	void cycleConfirm_MRLCS();
 	void writeMidForm();
 };

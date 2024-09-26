@@ -12,6 +12,11 @@ int main() {
 	//analyzer.analyze();
 	//analyzer.writeV("test1.v");
 	analyzer.toMidForm();
+	//analyzer.cycleConfirm_ASAP();
+	//analyzer.cycleConfirm_ALAP();
+	analyzer.cycleConfirm_Hu(2);
+	//analyzer.cycleConfirm_MLRCS();
+	//analyzer.cycleConfirm_MRLCS();
 	analyzer.writeMidForm();
 
 	//Analyser analyser;
