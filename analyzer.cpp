@@ -27,7 +27,17 @@ bool Analyzer::reMiddle(const wireType& name) {
 	return false;
 }
 
-void Analyzer::readBlif(std::string filename) {
+void Analyzer::clear() {
+	tmpLines.clear();
+	tmpGates.clear();
+	inputs.clear();
+	outputs.clear();
+	middles.clear();
+	expressions.clear();
+}
+
+bool Analyzer::readBlif(std::string filename) {
+	clear();
 	std::ifstream infilestream(filename);
 
 	if (infilestream.is_open()) {
@@ -36,8 +46,9 @@ void Analyzer::readBlif(std::string filename) {
 			tmpLines.push_back(line);
 		}
 		infilestream.close();
+		return true;
 	}
-	return;
+	return false;
 }
 
 void Analyzer::analyze() {
@@ -204,7 +215,7 @@ void Analyzer::writeV(std::string filename) {
 }
 
 void Analyzer::toMidForm() {
-	for (auto it = tmpLines.begin(); it != tmpLines.end(); it++) {
+	for (auto it = tmpLines.begin(); it != tmpLines.end(); ++it) {
 		if (it->at(0) == '.') {
 			size_t divider = it->find(' ');
 			if (divider == std::string::npos) {
@@ -244,7 +255,8 @@ void Analyzer::toMidForm() {
 				gate.suc = name;
 
 				//读入真值表
-				it++;
+				//只能处理单一门！！！
+				++it;
 				if (it->find('-') != std::string::npos) {
 					gate.gateType = OR;
 				}
@@ -262,6 +274,7 @@ void Analyzer::toMidForm() {
 }
 
 void Analyzer::cycleConfirm_ASAP() {
+	//遍历tmpGates全部确定cycle
 	for (auto pairP = tmpGates.begin(); pairP != tmpGates.end(); ++pairP) {
 		pairP->second.cycle = getGateCycle_ASAP(pairP->second);
 	}
@@ -269,11 +282,11 @@ void Analyzer::cycleConfirm_ASAP() {
 
 int Analyzer::getGateCycle_ASAP(const Gate& gate) {
 	int max = -1;
-	if (reInput(gate.suc)) {
-		return 0;
-	}
+
 	for (auto pre : gate.pres) {
+		//若节点前驱为inputs不在tmpGates中，会直接跳过，返回0
 		if (tmpGates.find(pre) != tmpGates.end()) {
+			//递归确定前驱cycle，取最大值，+1作为自己的cycle
 			int tmp = getGateCycle_ASAP(tmpGates[pre]);
 			if (tmp > max) {
 				max = tmp;
@@ -284,17 +297,20 @@ int Analyzer::getGateCycle_ASAP(const Gate& gate) {
 }
 
 void Analyzer::cycleConfirm_ALAP() {
+	//先全部赋值为最大值
 	int maxCycle = getGatesCycle() - 1;
 	for (auto gateP = tmpGates.begin(); gateP != tmpGates.end(); ++gateP) {
 		gateP->second.cycle = maxCycle;
 	}
 
+	//通过递归函数setGateCycle溯源赋值，因此只需要遍历输出
 	for (auto outputP = outputs.begin(); outputP < outputs.end(); ++outputP) {
 		setGateCycle_ALAP(tmpGates[*outputP], maxCycle);
 	}
 }
 
 int Analyzer::getGatesCycle() {
+	//确定全流程最大cycle
 	int max = 0;
 	for (auto p = outputs.begin(); p < outputs.end(); ++p) {
 		int tmp = getGateCycle_ASAP(tmpGates[*p]);
@@ -306,10 +322,12 @@ int Analyzer::getGatesCycle() {
 }
 
 void Analyzer::setGateCycle_ALAP(Gate& gate, int cy) {
+	//利用cy控制本gate的cycle，对于相同前驱节点，会在多次遍历中自动找到最小值
 	if (cy < gate.cycle) {
 		gate.cycle = cy;
 	}
 	for (auto pre : gate.pres) {
+		//递归确定gate前驱的cycle（input不需要cycle）
 		if (!reInput(pre)) {
 			setGateCycle_ALAP(tmpGates[pre], cy - 1);
 		}
@@ -317,6 +335,7 @@ void Analyzer::setGateCycle_ALAP(Gate& gate, int cy) {
 }
 
 void Analyzer::cycleConfirm_Hu(int limit) {
+	//先使用ALAP得到基础cycle，再按cycle排序塞进Gate数组huArray
 	cycleConfirm_ALAP();
 	std::vector<Gate*> huArray = std::vector<Gate*>();
 	for (auto gateP = tmpGates.begin(); gateP != tmpGates.end(); ++gateP) {
@@ -328,20 +347,37 @@ void Analyzer::cycleConfirm_Hu(int limit) {
 
 	int lmt = limit;
 	int cycle = 0;
-	std::set<Gate*> set = std::set<Gate*>();
+	std::set<Gate*> set = std::set<Gate*>();//正在执行的节点
 	for (auto index = huArray.begin(); index < huArray.end();) {
+		//资源足够
 		if (lmt > 0) {
-			//资源足够？
-			if (!preInSet(set, *index)) {
-				//前驱不在set中，即可工作
-				(*index)->cycle = cycle;
-				set.insert(*index);
-				--lmt;
-				++index;
+			//未被执行
+			if (!(*index)->scheduled) {
+				if (presAreScheduled(*index)) {
+					//前驱全部准备，可执行
+					(*index)->cycle = cycle;
+					set.insert(*index);
+					--lmt;
+					++index;
+				}
+				else {
+					//前驱未准备好
+					++index;
+					//若集合到末尾，重新遍历
+					if (index == huArray.end()) {
+						index = huArray.begin();
+						continue;
+					}
+				}
 			}
+			//已被执行直接跳过
+			else ++index;
 		}
 		else {
 			//资源不足加轮次
+			for (auto setP : set) {
+				setP->scheduled = true;
+			}
 			set.clear();
 			++cycle;
 			lmt = limit;
@@ -349,13 +385,23 @@ void Analyzer::cycleConfirm_Hu(int limit) {
 	}
 }
 
-bool Analyzer::preInSet(const std::set<Gate*>& set, const Gate* gate) {
+//bool Analyzer::preInSet(const std::set<Gate*>& set, const Gate* gate) {
+//	for (auto pre : gate->pres) {
+//		if (set.find(&tmpGates[pre]) != set.end()) {
+//			return true;
+//		}
+//	}
+//	return false;
+//}
+
+bool Analyzer::presAreScheduled(const Gate* gate) {
 	for (auto pre : gate->pres) {
-		if (set.find(&tmpGates[pre]) != set.end()) {
-			return true;
+		//非inputs
+		if (tmpGates.find(pre) != tmpGates.end()) {
+			if (!tmpGates[pre].scheduled) return false;
 		}
 	}
-	return false;
+	return true;
 }
 
 void Analyzer::cycleConfirm_MLRCS() {

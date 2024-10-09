@@ -21,6 +21,7 @@ private:
 		GateType gateType = UNKNOWN;
 		int cycle = -1;
 		wireType suc;
+		bool scheduled = false;
 	};
 
 	std::vector<std::string> tmpLines;
@@ -33,7 +34,9 @@ private:
 	int getGateCycle_ASAP(const Gate&);
 	int getGatesCycle();
 	void setGateCycle_ALAP(Gate&, int);
-	bool preInSet(const std::set<Gate*>&, const Gate*);
+	//bool preInSet(const std::set<Gate*>&, const Gate*);
+	bool presAreScheduled(const Gate*);
+	void clear();
 public:
 	std::string model;
 	std::vector<wireType> inputs;
@@ -42,7 +45,7 @@ public:
 	std::vector<wireType> middles;
 	std::vector<std::string> expressions;
 
-	void readBlif(std::string filename);
+	bool readBlif(std::string filename);
 	void analyze();
 	void writeV(std::string filename);
 	void toMidForm();
