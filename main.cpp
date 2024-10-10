@@ -18,14 +18,12 @@ int main() {
 			analyzer.toMidForm();
 			//analyzer.cycleConfirm_ASAP();
 			//analyzer.cycleConfirm_ALAP();
-			analyzer.cycleConfirm_Hu(3);
-			//analyzer.cycleConfirm_MLRCS();
+			//analyzer.cycleConfirm_Hu(3);
+			int latancy = analyzer.cycleConfirm_MLRCS(4);
 			//analyzer.cycleConfirm_MRLCS();
-			analyzer.writeMidForm();
+			analyzer.writeMidForm(WEIGHT);
 		}
-
 	}
-
 
 	//Analyser analyser;
 	//analyser.readV("test2.v");

@@ -334,7 +334,28 @@ void Analyzer::setGateCycle_ALAP(Gate& gate, int cy) {
 	}
 }
 
-void Analyzer::cycleConfirm_Hu(int limit) {
+int Analyzer::getMaxCycle(int flag) {
+	int max = 0;
+	switch (flag) {
+	case UNIQUE:
+		for (auto pair : tmpGates) {
+			if (pair.second.cycle + 1 > max) {
+				max = pair.second.cycle + 1;
+			}
+		}
+		break;
+	case WEIGHT:
+		for (auto pair : tmpGates) {
+			if (pair.second.cycle + pair.second.gateType > max) {
+				max = pair.second.cycle + pair.second.gateType;
+			}
+		}
+		break;
+	}
+	return max;
+}
+
+void Analyzer::cycleConfirm_Hu(int limit, int flag) {
 	//先使用ALAP得到基础cycle，再按cycle排序塞进Gate数组huArray
 	cycleConfirm_ALAP();
 	std::vector<Gate*> huArray = std::vector<Gate*>();
@@ -353,20 +374,20 @@ void Analyzer::cycleConfirm_Hu(int limit) {
 		if (lmt > 0) {
 			//未被执行
 			if (!(*index)->scheduled) {
-				if (presAreScheduled(*index)) {
-					//前驱全部准备，可执行
+				//不在执行且前驱全部准备，可执行
+				if (set.find(*index) == set.end() && presAreScheduled(*index)) {
 					(*index)->cycle = cycle;
 					set.insert(*index);
 					--lmt;
 					++index;
 				}
 				else {
-					//前驱未准备好
+					//前驱未准备好或已经在执行
 					++index;
 					//若集合到末尾，重新遍历
 					if (index == huArray.end()) {
 						index = huArray.begin();
-						continue;
+						lmt = 0;
 					}
 				}
 			}
@@ -374,13 +395,31 @@ void Analyzer::cycleConfirm_Hu(int limit) {
 			else ++index;
 		}
 		else {
-			//资源不足加轮次
-			for (auto setP : set) {
-				setP->scheduled = true;
+			//资源不足加轮次 
+			switch (flag) {
+			case UNIQUE:
+				for (auto setP = set.begin(); setP != set.end(); ++setP) {
+					if ((*setP)->cycle == cycle) {
+						(*setP)->scheduled = true;
+					}
+				}
+				set.clear();
+				break;
+			case WEIGHT:
+				for (auto setP = set.begin(); setP != set.end();) {
+					if ((*setP)->cycle + (*setP)->gateType - 1 == cycle) {
+						(*setP)->scheduled = true;
+						setP = set.erase(setP);
+					}
+					else {
+						++setP;
+					}
+				}
+				break;
 			}
-			set.clear();
+			
 			++cycle;
-			lmt = limit;
+			lmt = limit - set.size();
 		}
 	}
 }
@@ -404,10 +443,9 @@ bool Analyzer::presAreScheduled(const Gate* gate) {
 	return true;
 }
 
-void Analyzer::cycleConfirm_MLRCS() {
-	for (auto pair = tmpGates.begin(); pair != tmpGates.end(); ++pair) {
-		//pair->second.cycle = ? ;
-	}
+int Analyzer::cycleConfirm_MLRCS(int limit) {
+	cycleConfirm_Hu(limit, WEIGHT);
+	return getMaxCycle(WEIGHT);
 }
 
 void Analyzer::cycleConfirm_MRLCS() {
@@ -416,7 +454,7 @@ void Analyzer::cycleConfirm_MRLCS() {
 	}
 }
 
-void Analyzer::writeMidForm() {
+void Analyzer::writeMidForm(int flag) {
 	std::cout << "PIs :";
 	for (int i = 0; i < inputs.size(); i++) {
 		std::cout << inputs[i];
@@ -438,20 +476,52 @@ void Analyzer::writeMidForm() {
 		}
 	}
 
-	int max = 0;
-	for (auto pair : tmpGates) {
-		if (pair.second.cycle + 1> max) {
-			max = pair.second.cycle + 1;
-		}
-	}
+	int max = getMaxCycle(flag);
 	std::cout << "Total " << max << " Cycles\n";
 	std::vector<std::array<std::vector<wireType>, 3>> cycles;
 	for (int i = 0; i < max; i++) {
 		std::array<std::vector<wireType>, 3> gateNums;
-		for (auto p : tmpGates) {
-			if (p.second.cycle == i) {
-				gateNums[p.second.gateType - 1].push_back(p.second.suc);
+		switch (flag) {
+		case UNIQUE:
+			for (auto p : tmpGates) {
+				if (p.second.cycle == i) {
+					switch (p.second.gateType) {
+					case AND:
+						gateNums[0].push_back(p.second.suc);
+						break;
+					case OR:
+						gateNums[1].push_back(p.second.suc);
+						break;
+					case NOT:
+						gateNums[2].push_back(p.second.suc);
+						break;
+					default:
+						std::cerr << "UNKNOWN type" << std::endl;
+						break;
+					}
+				}
 			}
+			break;
+		case WEIGHT:
+			for (auto p : tmpGates) {
+				if (p.second.cycle <= i && p.second.cycle + p.second.gateType - 1 >= i) {
+					switch (p.second.gateType) {
+					case AND:
+						gateNums[0].push_back(p.second.suc);
+						break;
+					case OR:
+						gateNums[1].push_back(p.second.suc);
+						break;
+					case NOT:
+						gateNums[2].push_back(p.second.suc);
+						break;
+					default:
+						std::cerr << "UNKNOWN type" << std::endl;
+						break;
+					}
+				}
+			}
+			break;
 		}
 		cycles.push_back(gateNums);
 	}
