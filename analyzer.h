@@ -9,8 +9,9 @@
 # include <map>
 # include <algorithm>
 
-#define UNIQUE 1
-#define WEIGHT 0
+constexpr auto UNIQUE = 1;
+constexpr auto WEIGHT = 0;
+constexpr auto INFINITE = -1;
 
 using wireType = std::string;
 
@@ -30,7 +31,9 @@ private:
 	std::vector<std::string> tmpLines;
 	char flag; 
 	std::map<std::string, Gate> tmpGates;
+	std::vector<Gate*> huArray;
 
+	void clear();
 	bool reOutput(const wireType&);
 	bool reInput(const wireType&);
 	bool reMiddle(const wireType&);
@@ -38,9 +41,11 @@ private:
 	int getGatesCycle();
 	void setGateCycle_ALAP(Gate&, int);
 	int getMaxCycle(int flag);
+	void getHuArray();
+	void Hu(int, int flag = UNIQUE);
 	//bool preInSet(const std::set<Gate*>&, const Gate*);
 	bool presAreScheduled(const Gate*);
-	void clear();
+	void cycleConfirmReset();
 public:
 	std::string model;
 	std::vector<wireType> inputs;
@@ -57,6 +62,6 @@ public:
 	void cycleConfirm_ALAP();
 	void cycleConfirm_Hu(int, int flag = UNIQUE);
 	int cycleConfirm_MLRCS(int);
-	void cycleConfirm_MRLCS();
+	int cycleConfirm_MRLCS(int);
 	void writeMidForm(int flag = UNIQUE);
 };

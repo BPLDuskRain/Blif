@@ -30,6 +30,7 @@ bool Analyzer::reMiddle(const wireType& name) {
 void Analyzer::clear() {
 	tmpLines.clear();
 	tmpGates.clear();
+	huArray.clear();
 	inputs.clear();
 	outputs.clear();
 	middles.clear();
@@ -283,7 +284,7 @@ void Analyzer::cycleConfirm_ASAP() {
 int Analyzer::getGateCycle_ASAP(const Gate& gate) {
 	int max = -1;
 
-	for (auto pre : gate.pres) {
+	for (auto& pre : gate.pres) {
 		//若节点前驱为inputs不在tmpGates中，会直接跳过，返回0
 		if (tmpGates.find(pre) != tmpGates.end()) {
 			//递归确定前驱cycle，取最大值，+1作为自己的cycle
@@ -326,7 +327,7 @@ void Analyzer::setGateCycle_ALAP(Gate& gate, int cy) {
 	if (cy < gate.cycle) {
 		gate.cycle = cy;
 	}
-	for (auto pre : gate.pres) {
+	for (auto& pre : gate.pres) {
 		//递归确定gate前驱的cycle（input不需要cycle）
 		if (!reInput(pre)) {
 			setGateCycle_ALAP(tmpGates[pre], cy - 1);
@@ -338,14 +339,14 @@ int Analyzer::getMaxCycle(int flag) {
 	int max = 0;
 	switch (flag) {
 	case UNIQUE:
-		for (auto pair : tmpGates) {
+		for (auto& pair : tmpGates) {
 			if (pair.second.cycle + 1 > max) {
 				max = pair.second.cycle + 1;
 			}
 		}
 		break;
 	case WEIGHT:
-		for (auto pair : tmpGates) {
+		for (auto& pair : tmpGates) {
 			if (pair.second.cycle + pair.second.gateType > max) {
 				max = pair.second.cycle + pair.second.gateType;
 			}
@@ -355,39 +356,42 @@ int Analyzer::getMaxCycle(int flag) {
 	return max;
 }
 
-void Analyzer::cycleConfirm_Hu(int limit, int flag) {
+void Analyzer::getHuArray() {
 	//先使用ALAP得到基础cycle，再按cycle排序塞进Gate数组huArray
 	cycleConfirm_ALAP();
-	std::vector<Gate*> huArray = std::vector<Gate*>();
+	huArray = std::vector<Gate*>();
 	for (auto gateP = tmpGates.begin(); gateP != tmpGates.end(); ++gateP) {
 		huArray.push_back(&(gateP->second));
 	}
 	std::sort(huArray.begin(), huArray.end(), [](const Gate* a, const Gate* b) -> bool {
 		return a->cycle < b->cycle;
 	});
+}
 
+void Analyzer::Hu(int limit, int flag) {
+	//Hu算法主体，需要先获取huArray
 	int lmt = limit;
 	int cycle = 0;
 	std::set<Gate*> set = std::set<Gate*>();//正在执行的节点
 	for (auto index = huArray.begin(); index < huArray.end();) {
 		//资源足够
-		if (lmt > 0) {
+		if (lmt > 0 || lmt == INFINITE) {
 			//未被执行
 			if (!(*index)->scheduled) {
 				//不在执行且前驱全部准备，可执行
 				if (set.find(*index) == set.end() && presAreScheduled(*index)) {
 					(*index)->cycle = cycle;
 					set.insert(*index);
-					--lmt;
+					if (lmt != INFINITE) --lmt;
 					++index;
 				}
 				else {
 					//前驱未准备好或已经在执行
 					++index;
-					//若集合到末尾，重新遍历
+					//若集合到末尾，进入下一轮，重新遍历
 					if (index == huArray.end()) {
 						index = huArray.begin();
-						lmt = 0;
+						goto NotEnough;
 					}
 				}
 			}
@@ -395,6 +399,7 @@ void Analyzer::cycleConfirm_Hu(int limit, int flag) {
 			else ++index;
 		}
 		else {
+			NotEnough:
 			//资源不足加轮次 
 			switch (flag) {
 			case UNIQUE:
@@ -419,9 +424,15 @@ void Analyzer::cycleConfirm_Hu(int limit, int flag) {
 			}
 			
 			++cycle;
-			lmt = limit - set.size();
+			if(lmt != INFINITE) lmt = limit - set.size();
 		}
 	}
+}
+
+void Analyzer::cycleConfirm_Hu(int limit, int flag) {
+	cycleConfirmReset();
+	getHuArray();
+	Hu(limit, flag);
 }
 
 //bool Analyzer::preInSet(const std::set<Gate*>& set, const Gate* gate) {
@@ -434,7 +445,7 @@ void Analyzer::cycleConfirm_Hu(int limit, int flag) {
 //}
 
 bool Analyzer::presAreScheduled(const Gate* gate) {
-	for (auto pre : gate->pres) {
+	for (auto& pre : gate->pres) {
 		//非inputs
 		if (tmpGates.find(pre) != tmpGates.end()) {
 			if (!tmpGates[pre].scheduled) return false;
@@ -444,14 +455,43 @@ bool Analyzer::presAreScheduled(const Gate* gate) {
 }
 
 int Analyzer::cycleConfirm_MLRCS(int limit) {
+	//使用有权重的Hu算法，并返回轮次
 	cycleConfirm_Hu(limit, WEIGHT);
 	return getMaxCycle(WEIGHT);
 }
 
-void Analyzer::cycleConfirm_MRLCS() {
-	for (auto pair = tmpGates.begin(); pair != tmpGates.end(); ++pair) {
-		//pair->second.cycle = ? ;
+void Analyzer::cycleConfirmReset() {
+	for (auto& gate : tmpGates) {
+		gate.second.cycle = 0;
+		gate.second.scheduled = false;
 	}
+}
+
+int Analyzer::cycleConfirm_MRLCS(int limit) {
+	//判断无限资源所需轮次
+	cycleConfirmReset();
+	getHuArray();
+	Hu(INFINITE, WEIGHT);
+	const int minCycle = getMaxCycle(WEIGHT);
+	//无限资源下轮次大于要求则不能完成
+	if (minCycle > limit) {
+		return -1;
+	}
+
+	int cycle = 0;
+	int res = 1;
+	//资源由小到大，轮次则由大到小
+	//轮次正好小于等于限制，即为最小资源
+	while (true) {
+		cycleConfirmReset();
+		Hu(res, WEIGHT);
+		cycle = getMaxCycle(WEIGHT);
+		if (cycle <= limit) {
+			break;
+		}
+		++res;
+	}
+	return res;
 }
 
 void Analyzer::writeMidForm(int flag) {
@@ -483,7 +523,7 @@ void Analyzer::writeMidForm(int flag) {
 		std::array<std::vector<wireType>, 3> gateNums;
 		switch (flag) {
 		case UNIQUE:
-			for (auto p : tmpGates) {
+			for (auto& p : tmpGates) {
 				if (p.second.cycle == i) {
 					switch (p.second.gateType) {
 					case AND:
@@ -503,7 +543,7 @@ void Analyzer::writeMidForm(int flag) {
 			}
 			break;
 		case WEIGHT:
-			for (auto p : tmpGates) {
+			for (auto& p : tmpGates) {
 				if (p.second.cycle <= i && p.second.cycle + p.second.gateType - 1 >= i) {
 					switch (p.second.gateType) {
 					case AND:

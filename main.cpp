@@ -19,8 +19,8 @@ int main() {
 			//analyzer.cycleConfirm_ASAP();
 			//analyzer.cycleConfirm_ALAP();
 			//analyzer.cycleConfirm_Hu(3);
-			int latancy = analyzer.cycleConfirm_MLRCS(4);
-			//analyzer.cycleConfirm_MRLCS();
+			//int cycle = analyzer.cycleConfirm_MLRCS(4);
+			int res = analyzer.cycleConfirm_MRLCS(8);
 			analyzer.writeMidForm(WEIGHT);
 		}
 	}
