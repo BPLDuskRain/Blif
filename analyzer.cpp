@@ -1,6 +1,6 @@
 # include "Analyzer.h"
 
-bool Analyzer::reOutput(const wireType& name) {
+bool Analyzer::reOutput(const wireType& name) const {
 	for (std::string p : outputs) {
 		if (p == name) {
 			return true;
@@ -9,7 +9,7 @@ bool Analyzer::reOutput(const wireType& name) {
 	return false;
 }
 
-bool Analyzer::reInput(const wireType& name) {
+bool Analyzer::reInput(const wireType& name) const {
 	for (std::string p : inputs) {
 		if (p == name) {
 			return true;
@@ -18,7 +18,7 @@ bool Analyzer::reInput(const wireType& name) {
 	return false;
 }
 
-bool Analyzer::reMiddle(const wireType& name) {
+bool Analyzer::reMiddle(const wireType& name) const {
 	for (std::string p : middles) {
 		if (p == name) {
 			return true;
@@ -158,7 +158,7 @@ void Analyzer::analyze() {
 	}
 }
 
-void Analyzer::writeV(std::string filename) {
+void Analyzer::writeV(std::string filename) const {
 	std::ofstream outfilestream(filename);
 
 	//module行
@@ -359,7 +359,7 @@ int Analyzer::getMaxCycle(int flag) {
 void Analyzer::getHuArray() {
 	//先使用ALAP得到基础cycle，再按cycle排序塞进Gate数组huArray
 	cycleConfirm_ALAP();
-	huArray = std::vector<Gate*>();
+	huArray.clear();
 	for (auto gateP = tmpGates.begin(); gateP != tmpGates.end(); ++gateP) {
 		huArray.push_back(&(gateP->second));
 	}
@@ -375,14 +375,14 @@ void Analyzer::Hu(int limit, int flag) {
 	std::set<Gate*> set = std::set<Gate*>();//正在执行的节点
 	for (auto index = huArray.begin(); index < huArray.end();) {
 		//资源足够
-		if (lmt > 0 || lmt == INFINITE) {
+		if (lmt > 0) {
 			//未被执行
 			if (!(*index)->scheduled) {
 				//不在执行且前驱全部准备，可执行
 				if (set.find(*index) == set.end() && presAreScheduled(*index)) {
 					(*index)->cycle = cycle;
 					set.insert(*index);
-					if (lmt != INFINITE) --lmt;
+					--lmt;
 					++index;
 				}
 				else {
@@ -398,9 +398,9 @@ void Analyzer::Hu(int limit, int flag) {
 			//已被执行直接跳过
 			else ++index;
 		}
+		//资源不足加轮次
 		else {
-			NotEnough:
-			//资源不足加轮次 
+			NotEnough: 
 			switch (flag) {
 			case UNIQUE:
 				for (auto setP = set.begin(); setP != set.end(); ++setP) {
@@ -422,10 +422,16 @@ void Analyzer::Hu(int limit, int flag) {
 				}
 				break;
 			}
-			
 			++cycle;
-			if(lmt != INFINITE) lmt = limit - set.size();
+			lmt = limit - set.size();
 		}
+	}
+}
+
+void Analyzer::cycleConfirmReset() {
+	for (auto& gate : tmpGates) {
+		gate.second.cycle = 0;
+		gate.second.scheduled = false;
 	}
 }
 
@@ -460,10 +466,97 @@ int Analyzer::cycleConfirm_MLRCS(int limit) {
 	return getMaxCycle(WEIGHT);
 }
 
-void Analyzer::cycleConfirmReset() {
-	for (auto& gate : tmpGates) {
-		gate.second.cycle = 0;
-		gate.second.scheduled = false;
+int Analyzer::cycleConfirm_MLRCS(std::vector<int> limits) {
+	cycleConfirmReset();
+	getHuArray();
+	MLRCS(limits);
+	return getMaxCycle(WEIGHT);
+}
+
+void Analyzer::MLRCS(std::vector<int> limits) {
+	//MLRCS算法主体，需要先获取huArray
+	std::vector<int> lmts = limits;
+	int cycle = 0;
+	std::set<Gate*> set = std::set<Gate*>();//正在执行的节点
+	for (auto index = huArray.begin(); !huArray.empty();) {
+		//资源足够
+		if (srcEnough(lmts)) {
+			//不在执行且前驱全部准备，可执行
+			if (set.find(*index) == set.end() && presAreScheduled(*index)) {
+				//按门结算资源
+				switch ((*index)->gateType) {
+				case AND:
+					if (lmts[0] > 0) {
+						(*index)->cycle = cycle;
+						set.insert(*index);
+						--lmts[0];
+					}
+					break;
+				case OR:
+					if (lmts[1] > 0) {
+						(*index)->cycle = cycle;
+						set.insert(*index);
+						--lmts[1];
+					}
+					break;
+				case NOT:
+					if (lmts[2] > 0) {
+						(*index)->cycle = cycle;
+						set.insert(*index);
+						--lmts[2];
+					}
+					break;
+				}
+				++index;
+			}
+			else {
+				//前驱未准备好或已经在执行
+				++index;
+				//若集合到末尾，进入下一轮，重新遍历
+				if (index == huArray.end()) {
+					index = huArray.begin();
+					goto NotEnough;
+				}
+			}
+		}
+		//资源不足加轮次
+		else {
+		NotEnough:
+			//遍历set，如果执行完毕将其踢出huArrry和set，归还资源
+			for (auto setP = set.begin(); setP != set.end();) {
+				if ((*setP)->cycle + (*setP)->gateType - 1 == cycle) {
+					(*setP)->scheduled = true;
+					switch ((*setP)->gateType) {
+					case AND: ++lmts[0]; break;
+					case OR: ++lmts[1]; break;
+					case NOT: ++lmts[2]; break;
+					}
+					index = elementRemove((*setP));
+					setP = set.erase(setP);
+				}
+				else {
+					++setP;
+				}
+			}
+			++cycle;
+		}
+		if (index == huArray.end()) {
+			index = huArray.begin();
+		}
+	}
+}
+
+bool Analyzer::srcEnough(const std::vector<int>& lmts) const {
+	for (auto& lmt : lmts) {
+		if (lmt > 0) return true;
+	}
+	return false;
+}
+
+std::vector<Analyzer::Gate*>::iterator Analyzer::elementRemove(Gate* gate) {
+	auto it = std::find(huArray.begin(), huArray.end(), gate);
+	if (it != huArray.end()) {
+		return huArray.erase(it);
 	}
 }
 
@@ -471,8 +564,7 @@ int Analyzer::cycleConfirm_MRLCS(int limit) {
 	//判断无限资源所需轮次
 	cycleConfirmReset();
 	getHuArray();
-	Hu(INFINITE, WEIGHT);
-	const int minCycle = getMaxCycle(WEIGHT);
+	const int minCycle = getGatesCycle();
 	//无限资源下轮次大于要求则不能完成
 	if (minCycle > limit) {
 		return -1;

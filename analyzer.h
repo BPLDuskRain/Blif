@@ -11,7 +11,6 @@
 
 constexpr auto UNIQUE = 1;
 constexpr auto WEIGHT = 0;
-constexpr auto INFINITE = -1;
 
 using wireType = std::string;
 
@@ -20,23 +19,24 @@ private:
 	enum GateType{
 		UNKNOWN, NOT = 1, AND = 2, OR = 3
 	};
-	struct Gate {
+	struct Gate {wireType suc;
 		std::vector<wireType> pres;
 		GateType gateType = UNKNOWN;
 		int cycle = -1;
-		wireType suc;
+		
 		bool scheduled = false;
 	};
 
 	std::vector<std::string> tmpLines;
 	char flag; 
-	std::map<std::string, Gate> tmpGates;
+	std::map<wireType, Gate> tmpGates;
 	std::vector<Gate*> huArray;
 
 	void clear();
-	bool reOutput(const wireType&);
-	bool reInput(const wireType&);
-	bool reMiddle(const wireType&);
+	bool reOutput(const wireType&)const;
+	bool reInput(const wireType&)const;
+	bool reMiddle(const wireType&)const;
+
 	int getGateCycle_ASAP(const Gate&);
 	int getGatesCycle();
 	void setGateCycle_ALAP(Gate&, int);
@@ -46,6 +46,9 @@ private:
 	//bool preInSet(const std::set<Gate*>&, const Gate*);
 	bool presAreScheduled(const Gate*);
 	void cycleConfirmReset();
+	void MLRCS(std::vector<int>);
+	bool srcEnough(const std::vector<int>&)const;
+	std::vector<Gate*>::iterator elementRemove(Gate*);
 public:
 	std::string model;
 	std::vector<wireType> inputs;
@@ -56,12 +59,13 @@ public:
 
 	bool readBlif(std::string filename);
 	void analyze();
-	void writeV(std::string filename);
+	void writeV(std::string filename)const;
 	void toMidForm();
 	void cycleConfirm_ASAP();
 	void cycleConfirm_ALAP();
 	void cycleConfirm_Hu(int, int flag = UNIQUE);
-	int cycleConfirm_MLRCS(int);
+	int cycleConfirm_MLRCS(int);//·ÏÆú
+	int cycleConfirm_MLRCS(std::vector<int>);
 	int cycleConfirm_MRLCS(int);
 	void writeMidForm(int flag = UNIQUE);
 };
