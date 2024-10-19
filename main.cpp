@@ -19,8 +19,8 @@ int main() {
 			//analyzer.cycleConfirm_ASAP();
 			//analyzer.cycleConfirm_ALAP();
 			//analyzer.cycleConfirm_Hu(3);
-			int cycle = analyzer.cycleConfirm_MLRCS({1, 2, 1});
-			//int res = analyzer.cycleConfirm_MRLCS(8);
+			//int cycle = analyzer.cycleConfirm_MLRCS({2, 1, 1});
+			std::array<int, 3> res = analyzer.cycleConfirm_MRLCS(11);
 			analyzer.writeMidForm(WEIGHT);
 		}
 	}
