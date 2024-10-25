@@ -1,6 +1,6 @@
 # include "Analyzer.h"
 
-bool Analyzer::reOutput(const wireType& name) const {
+bool Analyzer::inOutput(const wireType& name) const {
 	for (std::string p : outputs) {
 		if (p == name) {
 			return true;
@@ -9,7 +9,7 @@ bool Analyzer::reOutput(const wireType& name) const {
 	return false;
 }
 
-bool Analyzer::reInput(const wireType& name) const {
+bool Analyzer::inInput(const wireType& name) const {
 	for (std::string p : inputs) {
 		if (p == name) {
 			return true;
@@ -18,7 +18,7 @@ bool Analyzer::reInput(const wireType& name) const {
 	return false;
 }
 
-bool Analyzer::reMiddle(const wireType& name) const {
+bool Analyzer::inMiddle(const wireType& name) const {
 	for (std::string p : middles) {
 		if (p == name) {
 			return true;
@@ -29,6 +29,7 @@ bool Analyzer::reMiddle(const wireType& name) const {
 
 void Analyzer::clear() {
 	tmpLines.clear();
+	tmpExps.clear();
 	tmpGates.clear();
 	huArray.clear();
 	inputs.clear();
@@ -54,107 +55,108 @@ bool Analyzer::readBlif(std::string filename) {
 
 void Analyzer::analyze() {
 	for (auto it = tmpLines.begin(); it != tmpLines.end(); it++) {
-		if (it->at(0) == '.') {
-			size_t divider = it->find(' ');
-			if (divider == std::string::npos) {
-				std::string substring = it->substr(1);
-				if (substring == "end") return;
-				std::cout << "Delimiter not found!\n";
-				return;
+		if (it->at(0) != '.') return;
+		size_t divider = it->find(' ');
+		if (divider == std::string::npos) {
+			std::string substring = it->substr(1);
+			if (substring == "end") return;
+			std::cout << "Delimiter not found!\n";
+			return;
+		}
+		std::string substring = it->substr(1, divider - 1);
+		//找model
+		if (substring == "model") {
+			model = it->substr(divider + 1);
+		}
+		//找inputs
+		else if (substring == "inputs") {
+			std::istringstream tmpStream(it->substr(divider + 1));
+			std::string input;
+			while (std::getline(tmpStream, input, ' ')) {
+				inputs.push_back(input);
 			}
-			std::string substring = it->substr(1, divider - 1);
-			//找model
-			if (substring == "model") {
-				model = it->substr(divider + 1);
+		}
+		//找outputs
+		else if (substring == "outputs") {
+			std::istringstream tmpStream(it->substr(divider + 1));
+			std::string output;
+			while (std::getline(tmpStream, output, ' ')) {
+				outputs.push_back(output);
 			}
-			//找inputs
-			else if (substring == "inputs") {
-				std::istringstream tmpStream(it->substr(divider + 1));
-				std::string input;
-				while (std::getline(tmpStream, input, ' ')) {
-					inputs.push_back(input);
-				}
+		}
+		//解析names
+		else if (substring == "names") {
+			Gate gate;
+			std::string result;
+			//names
+			std::vector<std::string> names;
+			//read temp strings
+			std::istringstream tmpStream(it->substr(divider + 1));
+			std::string name;
+			while (std::getline(tmpStream, name, ' ')) {
+				//记录变量名字
+				names.push_back(name);
+				//补充中间变量
+				if (inOutput(name) || inInput(name) || inMiddle(name)) continue;
+				middles.push_back(name);
 			}
-			//找outputs
-			else if (substring == "outputs") {
-				std::istringstream tmpStream(it->substr(divider + 1));
-				std::string output;
-				while (std::getline(tmpStream, output, ' ')) {
-					outputs.push_back(output);
-				}
-			}
-			//解析names
-			else if (substring == "names") {
-				std::string result;
-				//names
-				std::vector<std::string> names;
-				//read temp strings
-				std::istringstream tmpStream(it->substr(divider + 1));
-				std::string name;
-				while (std::getline(tmpStream, name, ' ')) {
-					//记录变量名字
-					names.push_back(name);
-					//补充中间变量
-					if (reOutput(name) || reInput(name) || reMiddle(name)) continue;
-					middles.push_back(name);
-				}
-				result = name;
-				names.pop_back();
+			result = name;
+			names.pop_back();
 
-				//读入真值表
-				std::vector<std::string> tmpExp;
-				while (true) {
-					it++;
-					if (it->at(0) == '.') {
-						it--;
+			//读入真值表
+			std::vector<std::string> tmpExp;
+			while (true) {
+				it++;
+				if (it->at(0) == '.') {
+					it--;
+					break;
+				}
+
+				for (int namePos = 0, linePos = 0; namePos < names.size() || linePos < it->size(); namePos++, linePos++) {
+					//确定是析取还是合取
+					size_t space = it->find(" ");
+					if (space != std::string::npos) {
+						flag = it->at(space + 1);
+					}
+					//对于直接赋值语句
+					else if (it->size() == 1) {
+						tmpExp.push_back(*it);
+						goto Assign;
+					}
+
+					//读到空格停止
+					if (it->at(linePos) == ' ') {
+						linePos++;
 						break;
 					}
-
-					for (int namePos = 0, linePos = 0; namePos < names.size() || linePos < it->size(); namePos++, linePos++) {
-						//确定是析取还是合取
-						size_t space = it->find(" ");
-						if (space != std::string::npos) {
-							flag = it->at(space + 1);
+					//根据flag判定非门
+					if (it->at(linePos) != '-') {
+						if ((it->at(linePos) == '0' && flag == '1') || (it->at(linePos) == '1' && flag == '0')) {
+							tmpExp.push_back("!");
 						}
-						//对于直接赋值语句
-						else if (it->size() == 1) {
-							tmpExp.push_back(*it);
-							goto Assign;
-						}
-
-						//读到空格停止
-						if (it->at(linePos) == ' ') {
-							linePos++;
-							break;
-						}
-						//根据flag判定非门
-						if (it->at(linePos) != '-') {
-							if ((it->at(linePos) == '0' && flag == '1') || (it->at(linePos) == '1' && flag == '0')) {
-								
-							}
-							//同行均用与门
-							tmpExp.push_back(names[namePos]);
-							tmpExp.push_back(" & ");
-						}
+						//同行均用与门
+						tmpExp.push_back(names[namePos]);
+						tmpExp.push_back(" & ");
 					}
-					//行间用或门
-					tmpExp.pop_back();
-					tmpExp.push_back(" | ");
 				}
+				//行间用或门
 				tmpExp.pop_back();
-			Assign:
-
-				//组合表达式
-				std::ostringstream oss;
-				oss << result << " = ";
-
-				for (int expPos = 0; expPos < tmpExp.size(); expPos++) {
-					oss << tmpExp[expPos];
-				}
-				expressions.push_back(oss.str());
+				tmpExp.push_back(" | ");
 			}
-			else std::cerr << "Invalid name\n";
+			tmpExp.pop_back();
+			tmpExps.insert({ result, tmpExp });
+		Assign:
+
+			//组合表达式
+			std::ostringstream oss;
+			oss << result << " = ";
+
+			for (int expPos = 0; expPos < tmpExp.size(); expPos++) {
+				oss << tmpExp[expPos];
+			}
+			expressions.push_back(oss.str());
 		}
+		else std::cerr << "Invalid name\n";
 	}
 }
 
@@ -215,62 +217,138 @@ void Analyzer::writeV(std::string filename) const {
 	outfilestream.close();
 }
 
-void Analyzer::toMidForm() {
+void Analyzer::toMidForm_elementary() {
+	tmpGates.clear();
 	for (auto it = tmpLines.begin(); it != tmpLines.end(); ++it) {
-		if (it->at(0) == '.') {
-			size_t divider = it->find(' ');
-			if (divider == std::string::npos) {
-				std::string substring = it->substr(1);
-				if (substring == "end") return;
-				std::cout << "Delimiter not found!\n";
-				return;
-			}
-			std::string substring = it->substr(1, divider - 1);
-			//找inputs
-			if (substring == "inputs") {
-				std::istringstream tmpStream(it->substr(divider + 1));
-				std::string input;
-				while (std::getline(tmpStream, input, ' ')) {
-					inputs.push_back(input);
+		if (it->at(0) != '.') continue;
+		size_t divider = it->find(' ');
+		if (divider == std::string::npos) {
+			std::string substring = it->substr(1);
+			if (substring == "end") return;
+			std::cout << "Delimiter not found!\n";
+			return;
+		}
+		std::string substring = it->substr(1, divider - 1);
+		//找inputs
+		if (substring == "inputs") {
+			std::istringstream tmpStream(it->substr(divider + 1));
+			std::string input;
+			while (std::getline(tmpStream, input, ' ')) {
+				inputs.push_back(input);
 
-				}
-			}
-			//找outputs
-			else if (substring == "outputs") {
-				std::istringstream tmpStream(it->substr(divider + 1));
-				std::string output;
-				while (std::getline(tmpStream, output, ' ')) {
-					outputs.push_back(output);
-				}
-			}
-			//解析names
-			else if (substring == "names") {
-				Gate gate;
-				//read temp strings
-				std::istringstream tmpStream(it->substr(divider + 1));
-				std::string name;
-				while (std::getline(tmpStream, name, ' ')) {
-					gate.pres.push_back(name);
-				}
-				gate.pres.pop_back();
-				gate.suc = name;
-
-				//读入真值表
-				//只能处理单一门！！！
-				++it;
-				if (it->find('-') != std::string::npos) {
-					gate.gateType = OR;
-				}
-				else if (it->size() == 3) {
-					gate.gateType = NOT;
-				}
-				else {
-					gate.gateType = AND;
-				}
-				gate.cycle = 0;
-				tmpGates.insert({ name, gate });
 			}
 		}
+		//找outputs
+		else if (substring == "outputs") {
+			std::istringstream tmpStream(it->substr(divider + 1));
+			std::string output;
+			while (std::getline(tmpStream, output, ' ')) {
+				outputs.push_back(output);
+			}
+		}
+		//解析names
+		else if (substring == "names") {
+			Gate gate;
+			//read temp strings
+			std::istringstream tmpStream(it->substr(divider + 1));
+			std::string name;
+			while (std::getline(tmpStream, name, ' ')) {
+				gate.pres.push_back(name);
+			}
+			gate.pres.pop_back();
+			gate.suc = name;
+
+			//读入真值表
+			//只能处理单一门！！！
+			++it;
+			if (it->find('-') != std::string::npos) {
+				gate.gateType = OR;
+			}
+			else if (it->size() == 3) {
+				gate.gateType = NOT;
+			}
+			else {
+				gate.gateType = AND;
+			}
+			gate.cycle = 0;
+			tmpGates.insert({ name, gate });
+		}
+	}
+}
+
+void Analyzer::toMidForm() {
+	analyze();
+	for (auto& exp : tmpExps) {
+		MyTree myTree;
+		for (auto& ch : exp.second) {
+			myTree.add(ch);
+		}
+		Gate gate = expBreak(myTree.post_order_toString());
+		gate.suc = exp.first;
+		tmpGates.insert({ gate.suc, gate });
+	}
+}
+
+Analyzer::Gate Analyzer::expBreak(std::vector<std::string>* exp) {
+	std::stack<std::string> bufs;
+	const std::string tmp = "_tmp";
+	int count = 0;
+	int flag = UNKNOWN;//用于判断上一个符号是否和本次一致，即是否可级联
+	for (auto ch_ptr = exp->begin(); ch_ptr < exp->end(); ++ch_ptr) {
+		//非门（一元）则取末缓冲区形成表达式
+		if (*ch_ptr == "!") {
+			Gate gate;
+			gate.pres.push_back(bufs.top()); bufs.pop();
+			gate.gateType = NOT;
+			//最后一个式子直接返回，suc交给外部处理
+			if (ch_ptr + 1 == exp->end()) return gate;
+			gate.suc = tmp + std::to_string(count++);
+			tmpGates.insert({ gate.suc, gate });
+			//生成中间值填充末缓冲区
+			bufs.push(gate.suc);
+			continue;
+		}
+		//与或门（二元）则取两缓冲区形成表达式
+		if (*ch_ptr == " | " || *ch_ptr == " & ") {
+			Gate gate;
+			if (*ch_ptr == " | ") gate.gateType = OR;
+			if (*ch_ptr == " & ") gate.gateType = AND;
+			//可级联时
+			if (gate.gateType == flag) {
+				//从tmpGates中取出上一个gate并保存
+				gate = tmpGates[bufs.top()];
+				tmpGates.erase(bufs.top());
+				//tmp出栈
+				bufs.pop();
+				//下方数据进gate，出栈
+				gate.pres.push_back(bufs.top()); bufs.pop();
+
+				//若为最后一个式子直接返回，suc交给外部处理
+				if (ch_ptr + 1 == exp->end()) return gate;
+
+				tmpGates.insert({ gate.suc, gate });
+			}
+			//不可级联
+			else {
+				//弹出两个操作数
+				gate.pres.push_back(bufs.top()); bufs.pop();
+				gate.pres.push_back(bufs.top()); bufs.pop();
+
+				//若为最后一个式子直接返回，suc交给外部处理
+				if (ch_ptr + 1 == exp->end()) return gate;
+
+				gate.suc = tmp + std::to_string(count++);
+
+				tmpGates.insert({ gate.suc, gate });
+			}
+			//生成中间值填充末缓冲区;
+			bufs.push(gate.suc);
+			flag = gate.gateType;
+			continue;
+		}
+		//填充缓冲区
+		bufs.push(*ch_ptr);
+		flag = UNKNOWN;
 	}
 }
 
@@ -329,7 +407,7 @@ void Analyzer::setGateCycle_ALAP(Gate& gate, int cy) {
 	}
 	for (auto& pre : gate.pres) {
 		//递归确定gate前驱的cycle（input不需要cycle）
-		if (!reInput(pre)) {
+		if (!inInput(pre)) {
 			setGateCycle_ALAP(tmpGates[pre], cy - 1);
 		}
 	}
@@ -424,6 +502,7 @@ void Analyzer::Hu(int limit, int flag) {
 			}
 			++cycle;
 			lmt = limit - set.size();
+			index = huArray.begin();
 		}
 	}
 }
@@ -562,6 +641,7 @@ std::vector<Analyzer::Gate*>::iterator Analyzer::elementRemove(Gate* gate) {
 	if (it != huArray.end()) {
 		return huArray.erase(it);
 	}
+	return huArray.end();
 }
 
 //int Analyzer::cycleConfirm_MRLCS(int limit) {
@@ -595,7 +675,7 @@ std::array<int, 3> Analyzer::cycleConfirm_MRLCS(int limit) {
 	const int minCycle = cycleConfirm_MLRCS({INF, INF, INF});
 	//无限资源下轮次大于要求则不能完成
 	if (minCycle > limit) {
-		return {-1, -1, -1};
+		return { INF, INF, INF };
 	}
 	//遍历所有门保存数量
 	std::array<int, 3> gateNum = {0, 0, 0};

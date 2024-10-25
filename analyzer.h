@@ -5,10 +5,12 @@
 # include <string>
 # include <vector>
 # include <array>
+# include <stack>
 # include <set>
 # include <unordered_map>
 # include <algorithm>
-# include <climits>
+
+# include "MyTree.h"
 
 constexpr auto UNIQUE = 1;
 constexpr auto WEIGHT = 0;
@@ -18,7 +20,7 @@ using wireType = std::string;
 
 class Analyzer {
 private:
-	enum GateType{
+	enum GateType {
 		UNKNOWN, NOT = 1, AND = 2, OR = 3
 	};
 	struct Gate {
@@ -30,14 +32,16 @@ private:
 	};
 
 	std::vector<std::string> tmpLines;
-	char flag; 
+	std::unordered_map<std::string, std::vector<std::string>> tmpExps;
+	char flag;
 	std::unordered_map<wireType, Gate> tmpGates;
 	std::vector<Gate*> huArray;
 
 	void clear();
-	bool reOutput(const wireType&)const;
-	bool reInput(const wireType&)const;
-	bool reMiddle(const wireType&)const;
+	bool inOutput(const wireType&)const;
+	bool inInput(const wireType&)const;
+	bool inMiddle(const wireType&)const;
+	Gate expBreak(std::vector<std::string>* exp);
 
 	int getGateCycle_ASAP(const Gate&);
 	int getGatesCycle();
@@ -63,6 +67,7 @@ public:
 	bool readBlif(std::string filename);
 	void analyze();
 	void writeV(std::string filename)const;
+	void toMidForm_elementary();//只能处理单一门
 	void toMidForm();
 	void cycleConfirm_ASAP();
 	void cycleConfirm_ALAP();
