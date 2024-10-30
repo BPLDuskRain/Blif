@@ -19,11 +19,13 @@ int main(int argc, char* argv[]) {
 		std::cerr << "No enough ParaMeters" << std::endl;
 		return -1;
 	}
-	std::array<int, GateTypeNums> paras = {0};
-	for (int i = 1 + 1; i < argc; ++i) {
-		paras[i - 1 - 1] = (std::stoi(argv[i]));
-	}
+	//std::array<int, GateTypeNums> paras = {0};
+	//for (int i = 1 + 1; i < argc; ++i) {
+	//	paras[i - 1 - 1] = (std::stoi(argv[i]));
+	//}
+	int para = std::stoi(argv[2]);
 
+	int cycle = 0;
 	if (analyzer.readBlif(filename)) {
 		//analyzer.toMidForm_elementary();
 		analyzer.toMidForm();
@@ -31,10 +33,13 @@ int main(int argc, char* argv[]) {
 		//analyzer.cycleConfirm_ASAP();
 		//analyzer.cycleConfirm_ALAP();
 		//analyzer.cycleConfirm_Hu(3);
-		int cycle = analyzer.cycleConfirm_MLRCS(paras);
-		//std::array<int, 3> res = analyzer.cycleConfirm_MRLCS(11);
+		//cycle = analyzer.cycleConfirm_MLRCS(paras);
+		std::array<int, GateTypeNums> res = analyzer.cycleConfirm_MRLCS(para);
 		//analyzer.writeMidForm(UNIQUE);
 		analyzer.writeMidForm(WEIGHT);
+		std::cout << "&: " << res[0] << std::endl;
+		std::cout << "|: " << res[1] << std::endl;
+		std::cout << "!: " << res[2] << std::endl;
 	}
 	return 0;
 }

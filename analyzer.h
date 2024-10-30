@@ -58,6 +58,10 @@ private:
 	bool srcEnough(const int)const;
 	bool srcsEnough(const std::vector<int>&)const;
 	std::vector<Gate*>::iterator elementRemove(Gate*);
+	void MRLCS_Basic(int, std::array<int, GateTypeNums>& , const std::array<bool, GateTypeNums>&);
+	void MRLCS(int, std::array<int, GateTypeNums>&, const std::array<bool, GateTypeNums>&);
+	void setGateCycle_MRLCS(Gate&, int);
+	int getGateCycle_MRLCS(const Gate& gate);
 public:
 	std::string model;
 	std::vector<wireType> inputs;

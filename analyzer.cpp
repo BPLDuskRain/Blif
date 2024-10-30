@@ -508,9 +508,9 @@ void Analyzer::Hu(int limit, int flag) {
 }
 
 void Analyzer::cycleConfirmReset() {
-	for (auto& gate : tmpGates) {
-		gate.second.cycle = 0;
-		gate.second.scheduled = false;
+	for (auto& gatePair : tmpGates) {
+		gatePair.second.cycle = 0;
+		gatePair.second.scheduled = false;
 	}
 }
 
@@ -587,6 +587,10 @@ void Analyzer::MLRCS(std::array<int, GateTypeNums> limits) {
 					break;
 				}
 				++index;
+				if (index == huArray.end()) {
+					index = huArray.begin();
+					goto NotEnough;
+				}
 			}
 			else {
 				//前驱未准备好或已经在执行
@@ -618,8 +622,6 @@ void Analyzer::MLRCS(std::array<int, GateTypeNums> limits) {
 				}
 			}
 			++cycle;
-		}
-		if (index == huArray.end()) {
 			index = huArray.begin();
 		}
 	}
@@ -679,8 +681,8 @@ std::array<int, GateTypeNums> Analyzer::cycleConfirm_MRLCS(int limit) {
 	}
 	//遍历所有门保存数量
 	std::array<int, GateTypeNums> gateNum = {0, 0, 0};
-	for (auto& gate : tmpGates) {
-		switch (gate.second.gateType) {
+	for (auto& gatePair : tmpGates) {
+		switch (gatePair.second.gateType) {
 		case AND: ++gateNum[0]; break;
 		case OR : ++gateNum[1]; break;
 		case NOT: ++gateNum[2]; break;
@@ -697,9 +699,17 @@ std::array<int, GateTypeNums> Analyzer::cycleConfirm_MRLCS(int limit) {
 		if (needGate[i]) resourseNum[i] = 1;
 	}
 
+	//为需要的门置1试探
 	int cycle = cycleConfirm_MLRCS(resourseNum);
 	if (cycle <= limit) return resourseNum;
-	
+
+	MRLCS(limit, resourseNum, needGate);
+	return resourseNum;
+}
+
+//MRLCS：暴力解法，存在死循环情况弃用
+void Analyzer::MRLCS_Basic(int limit, std::array<int, GateTypeNums>& resourseNum, const std::array<bool, GateTypeNums>& needGate) {
+	int cycle = cycleConfirm_MLRCS(resourseNum);
 	int index = 0;
 	//资源由小到大，轮次则由大到小
 	//轮次正好小于等于限制，即为最小资源
@@ -713,19 +723,140 @@ std::array<int, GateTypeNums> Analyzer::cycleConfirm_MRLCS(int limit) {
 		else --resourseNum[index];
 		//索引自增（循环）
 		index = ++index % resourseNum.size();
-		if (cycle <= limit) return resourseNum;
+		if (cycle <= limit) return;
 	}
 }
 
+void Analyzer::MRLCS(int limit, std::array<int, GateTypeNums>& resourseNum, const std::array<bool, GateTypeNums>& needGate) {
+	std::vector<std::array<int, GateTypeNums>> needNum;
+	for (int i = 0; i < limit; ++i) needNum.push_back({});
+	//同ALAP
+	for (auto& gatePair : tmpGates) {
+		gatePair.second.cycle = limit;
+	}
+	for (const auto& output : outputs) {
+		setGateCycle_MRLCS(tmpGates[output], limit);
+	}
+	//最早回合
+	std::vector<Gate> tmpGatesArray;
+	for (const auto& gatePair : tmpGates) {
+		int earliestStartCycle = getGateCycle_MRLCS(gatePair.second);
+		if (earliestStartCycle == gatePair.second.cycle) continue;
+		tmpGatesArray.push_back(gatePair.second);
+	}
+	//按最终cycle降序排列
+	std::sort(tmpGatesArray.begin(), tmpGatesArray.end(), [](const Gate a, const Gate b) -> bool {
+		return a.cycle > b.cycle;
+	});
+	for (auto& gate : tmpGatesArray) {
+		gate.cycle = getGateCycle_MRLCS(gate);
+	}
+	//填充需求数组
+	for (auto& gatePair : tmpGates) {
+		switch (gatePair.second.gateType) {
+		case AND: for (int i = 0; i < AND; ++i) ++needNum[gatePair.second.cycle + i][0]; break;
+		case OR : for (int i = 0; i < OR ; ++i) ++needNum[gatePair.second.cycle + i][1]; break;
+		case NOT: for (int i = 0; i < NOT; ++i) ++needNum[gatePair.second.cycle + i][2]; break;
+		}
+	}
+	//除去浮动数
+	for (auto& gate : tmpGatesArray) {
+		switch (gate.gateType) {
+		case AND: for (int i = 0; i < AND; ++i) --needNum[tmpGates[gate.suc].cycle + i][0]; break;
+		case OR : for (int i = 0; i < OR ; ++i) --needNum[tmpGates[gate.suc].cycle + i][1]; break;
+		case NOT: for (int i = 0; i < NOT; ++i) --needNum[tmpGates[gate.suc].cycle + i][2]; break;
+		}
+	}
+	//初步确定资源
+	for (auto& cycleGates : needNum) {
+		for (int i = 0; i < GateTypeNums; ++i) {
+			if (cycleGates[i] > resourseNum[i]) resourseNum[i] = cycleGates[i];
+		}
+	}
+	//根据浮动数尝试增添
+	while (true) {
+		auto gate = tmpGatesArray.back();
+		int earliestStartCycle = gate.cycle;
+		int latestStartcycle = tmpGates[gate.suc].cycle;
+		//遍历浮动数可能的选择
+		for (int i = earliestStartCycle; i < latestStartcycle; ++i) {
+			//若可先做，则：置cycle、needNum矩阵修改、弹出数组，跳出
+			switch (gate.gateType) {
+			case AND: 
+				if (needNum[i][0] + 1 <= resourseNum[0]) { 
+					tmpGates[gate.suc].cycle = i;
+					for (int j = 0; j < AND; ++j) ++needNum[i + j][0];
+					tmpGatesArray.pop_back();
+					goto OUTER;
+				}
+				else break;
+			case OR:  
+				if (needNum[i][1] + 1 <= resourseNum[1]) { 
+					tmpGates[gate.suc].cycle = i; 
+					for (int j = 0; j < OR ; ++j) ++needNum[i + j][1];
+					tmpGatesArray.pop_back(); 
+					goto OUTER; 
+				}
+				   else break;
+			case NOT: 
+				if (needNum[i][2] + 1 <= resourseNum[2]) {
+					tmpGates[gate.suc].cycle = i;
+					for (int j = 0; j < NOT; ++j) ++needNum[i + j][2];
+					tmpGatesArray.pop_back();
+					goto OUTER;
+				}
+				else break;
+			}
+		}
+		//不可则加资源
+		switch (gate.gateType) {
+		case AND: ++resourseNum[0]; break;
+		case OR : ++resourseNum[1]; break;
+		case NOT: ++resourseNum[2]; break;
+		}
+		OUTER:
+		if (tmpGatesArray.size() == 0) break;
+	}
+}
+
+void Analyzer::setGateCycle_MRLCS(Gate& gate, int limit) {
+	int latestStartCycle = limit - gate.gateType;
+	if (latestStartCycle < gate.cycle) {
+		gate.cycle = latestStartCycle;
+	}
+	for (const auto& pre : gate.pres) {
+		//递归确定gate前驱的cycle（input不需要cycle）
+		if (!inInput(pre)) {
+			setGateCycle_MRLCS(tmpGates[pre], latestStartCycle);
+		}
+	}
+}
+
+int Analyzer::getGateCycle_MRLCS(const Gate& gate) {
+	int max = 0;
+
+	for (auto& pre : gate.pres) {
+		//若节点前驱为inputs不在tmpGates中，会直接跳过，返回0
+		if (tmpGates.find(pre) != tmpGates.end()) {
+			//递归确定前驱cycle，取最大值，+gateType作为自己的cycle
+			int tmp = getGateCycle_MRLCS(tmpGates[pre]) + tmpGates[pre].gateType;
+			if (tmp > max) {
+				max = tmp;
+			}
+		}
+	}
+	return max;
+}
+
 void Analyzer::writeMidForm(int flag) {
-	std::cout << "PIs :";
+	std::cout << "Input :";
 	for (int i = 0; i < inputs.size(); i++) {
 		std::cout << inputs[i];
 		if (i + 1 < inputs.size()) {
 			std::cout << ", ";
 		}
 		else {
-			std::cout << "  ";
+			std::cout << ' ';
 		}
 	}
 	std::cout << "Output :";
