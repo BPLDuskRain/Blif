@@ -545,14 +545,14 @@ int Analyzer::cycleConfirm_MLRCS(int limit) {
 	return getMaxCycle(WEIGHT);
 }
 
-int Analyzer::cycleConfirm_MLRCS(std::array<int, 3> limits) {
+int Analyzer::cycleConfirm_MLRCS(std::array<int, GateTypeNums> limits) {
 	cycleConfirmReset();
 	getHuArray();
 	MLRCS(limits);
 	return getMaxCycle(WEIGHT);
 }
 
-void Analyzer::MLRCS(std::array<int, 3> limits) {
+void Analyzer::MLRCS(std::array<int, GateTypeNums> limits) {
 	//MLRCS算法主体，需要先获取huArray
 	std::vector<int> lmts(limits.begin(), limits.end());
 	int cycle = 0;
@@ -670,7 +670,7 @@ std::vector<Analyzer::Gate*>::iterator Analyzer::elementRemove(Gate* gate) {
 //	return res;
 //}
 
-std::array<int, 3> Analyzer::cycleConfirm_MRLCS(int limit) {
+std::array<int, GateTypeNums> Analyzer::cycleConfirm_MRLCS(int limit) {
 	//判断无限资源所需轮次
 	const int minCycle = cycleConfirm_MLRCS({INF, INF, INF});
 	//无限资源下轮次大于要求则不能完成
@@ -678,7 +678,7 @@ std::array<int, 3> Analyzer::cycleConfirm_MRLCS(int limit) {
 		return { INF, INF, INF };
 	}
 	//遍历所有门保存数量
-	std::array<int, 3> gateNum = {0, 0, 0};
+	std::array<int, GateTypeNums> gateNum = {0, 0, 0};
 	for (auto& gate : tmpGates) {
 		switch (gate.second.gateType) {
 		case AND: ++gateNum[0]; break;
@@ -687,12 +687,12 @@ std::array<int, 3> Analyzer::cycleConfirm_MRLCS(int limit) {
 		}
 	}
 	//排除不需要的门
-	std::array<bool, 3> needGate = { true, true, true };
+	std::array<bool, GateTypeNums> needGate = { true, true, true };
 	for (int i = 0; i < gateNum.size(); ++i) {
 		if (gateNum[i] == 0) needGate[i] = false;
 	}
 	//如果不需要某种门，则其资源是0
-	std::array<int, 3> resourseNum = {0, 0, 0};
+	std::array<int, GateTypeNums> resourseNum = {0, 0, 0};
 	for (int i = 0; i < resourseNum.size(); ++i) {
 		if (needGate[i]) resourseNum[i] = 1;
 	}
@@ -741,9 +741,9 @@ void Analyzer::writeMidForm(int flag) {
 
 	int max = getMaxCycle(flag);
 	std::cout << "Total " << max << " Cycles\n";
-	std::vector<std::array<std::vector<wireType>, 3>> cycles;
+	std::vector<std::array<std::vector<wireType>, GateTypeNums>> cycles;
 	for (int i = 0; i < max; i++) {
-		std::array<std::vector<wireType>, 3> gateNums;
+		std::array<std::vector<wireType>, GateTypeNums> gateNums;
 		switch (flag) {
 		case UNIQUE:
 			for (auto& p : tmpGates) {
@@ -790,7 +790,7 @@ void Analyzer::writeMidForm(int flag) {
 	}
 	for (int i = 0; i < max; i++) {
 		std::cout << "Cycle " << i << ':';
-		for (int j = 0; j < 3; j++) {
+		for (int j = 0; j < GateTypeNums; j++) {
 			std::cout << "{ ";
 			for (wireType p : cycles[i][j]) {
 				std::cout << p << ' ';

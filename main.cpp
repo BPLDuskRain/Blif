@@ -7,53 +7,50 @@
 # include "Analyser.h"
 # include "MyTree.h"
 
-int main() {
+int main(int argc, char* argv[]) {
 	Analyzer analyzer;
-	//analyzer.readBlif("test0.blif");
 	std::string filename;
-	for (int i = 0; i < 3; i++) {
-		filename = "test" + std::to_string(i) + ".blif";
-
-		if (analyzer.readBlif(filename)) {
-			//analyzer.toMidForm_elementary();
-			analyzer.toMidForm();
-
-			analyzer.cycleConfirm_ASAP();
-			//analyzer.cycleConfirm_ALAP();
-			//analyzer.cycleConfirm_Hu(3);
-			//int cycle = analyzer.cycleConfirm_MLRCS({2, 1, 1});
-			//std::array<int, 3> res = analyzer.cycleConfirm_MRLCS(11);
-			analyzer.writeMidForm(UNIQUE);
-			//analyzer.writeMidForm(WEIGHT);
-		}
+	if (argc == 1) {
+		std::cerr << "No File Name" << std::endl;
+		return -1;
 	}
-	//analyzer.analyze();
-	//analyzer.writeV("test0.v");
+	filename.assign(argv[1]);
+	if (argc == 2 || argc > 1+1+GateTypeNums) {
+		std::cerr << "No enough ParaMeters" << std::endl;
+		return -1;
+	}
+	std::array<int, GateTypeNums> paras = {0};
+	for (int i = 1 + 1; i < argc; ++i) {
+		paras[i - 1 - 1] = (std::stoi(argv[i]));
+	}
 
-	//Analyser analyser;
-	//analyser.readV("test2.v");
-	//analyser.analyse();
-	//analyser.writeBlif("test2.blif");
+	if (analyzer.readBlif(filename)) {
+		//analyzer.toMidForm_elementary();
+		analyzer.toMidForm();
+
+		//analyzer.cycleConfirm_ASAP();
+		//analyzer.cycleConfirm_ALAP();
+		//analyzer.cycleConfirm_Hu(3);
+		int cycle = analyzer.cycleConfirm_MLRCS(paras);
+		//std::array<int, 3> res = analyzer.cycleConfirm_MRLCS(11);
+		//analyzer.writeMidForm(UNIQUE);
+		analyzer.writeMidForm(WEIGHT);
+	}
 	return 0;
 }
 
 int main01() {
-	MyTree myTree;
-	myTree.add("v3");
-	myTree.add(" & ");
-	myTree.add("!");
-	myTree.add("j");
-	myTree.add(" | ");
-	myTree.add("u78");
-	myTree.add(" & ");
-	myTree.add("j");
-	myTree.add(" | ");
-	myTree.add("!");
-	myTree.add("v3");
-	myTree.add(" & ");
-	myTree.add("v6");
-	myTree.add(" & ");
-	myTree.add("j");
-	std::vector<std::string>* post = myTree.post_order_toString();
+	Analyzer analyzer;
+	analyzer.readBlif("test1.blif");
+	analyzer.analyze();
+	analyzer.writeV("test1.v");
+	return 0;
+}
+
+int main02() {
+	Analyser analyser;
+	analyser.readV("test1.v");
+	analyser.analyse();
+	analyser.writeBlif("test1.blif");
 	return 0;
 }

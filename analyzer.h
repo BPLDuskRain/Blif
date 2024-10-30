@@ -12,6 +12,8 @@
 
 # include "MyTree.h"
 
+constexpr auto GateTypeNums = 3;
+
 constexpr auto UNIQUE = 1;
 constexpr auto WEIGHT = 0;
 constexpr auto INF = -1;
@@ -52,7 +54,7 @@ private:
 	//bool preInSet(const std::set<Gate*>&, const Gate*);
 	bool presAreScheduled(const Gate*);
 	void cycleConfirmReset();
-	void MLRCS(std::array<int, 3>);
+	void MLRCS(std::array<int, GateTypeNums>);
 	bool srcEnough(const int)const;
 	bool srcsEnough(const std::vector<int>&)const;
 	std::vector<Gate*>::iterator elementRemove(Gate*);
@@ -73,7 +75,7 @@ public:
 	void cycleConfirm_ALAP();
 	void cycleConfirm_Hu(int, int flag = UNIQUE);
 	int cycleConfirm_MLRCS(int);//·ÏÆú
-	int cycleConfirm_MLRCS(std::array<int, 3>);
+	int cycleConfirm_MLRCS(std::array<int, GateTypeNums>);
 	std::array<int, 3> cycleConfirm_MRLCS(int);
 	void writeMidForm(int flag = UNIQUE);
 };
