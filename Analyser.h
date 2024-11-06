@@ -5,6 +5,7 @@
 # include <string>
 # include <vector>
 
+# define FLAG 1
 # define NOTFOUND -1
 
 class Analyser {

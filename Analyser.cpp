@@ -154,7 +154,7 @@ void Analyser::assignAnalyse(std::string assign) {
 		expAnalyse(exp);//第一次解析exp，递归拆出变量名
 		formString.assign(name.parameters.size(), '-');//用于和变量名一一相对的数组
 
-		formGenerate(exp, 1);//1或0表示范式类型，第二次解析exp，递归给出表达式
+		formGenerate(exp, FLAG);//1或0表示范式类型，第二次解析exp，递归给出表达式
 		name.form = formStream.str();
 		formStream.str("");//清空范式，下次调用备用
 	}
@@ -192,6 +192,7 @@ void Analyser::expAnalyse(std::string exp) {
 				std::string subExp = exp.substr(notGate + 1);
 				expAnalyse(subExp);
 			}
+			//无非门
 			else {
 				semi = exp.find(';');
 				if (semi != std::string::npos) {
@@ -200,6 +201,7 @@ void Analyser::expAnalyse(std::string exp) {
 						name.parameters.push_back(exp);
 					}
 				}
+				//非最后
 				else {
 					if (name.inParameters(exp) == NOTFOUND) {
 						name.parameters.push_back(exp);
@@ -259,19 +261,19 @@ void Analyser::formGenerate(std::string exp, int flag) {
 				semi = exp.find(';');
 				if (semi != std::string::npos) {
 					exp = exp.substr(0, semi);
-					int pos = inTmpParas(exp);
+					int pos = name.inParameters(exp);
 					if (pos != NOTFOUND) {
-						formString[pos - 3] = flag + '0';
+						formString[pos] = flag + '0';
 						std::string str(formString.begin(), formString.end());
 						formString.assign(name.parameters.size(), '-');
-						formStream << str << " " << flag << std::endl;
+						formStream << str << " " << FLAG << std::endl;
 					}
 				}
 				else {
 				//前面部分
-					int pos = inTmpParas(exp);
+					int pos = name.inParameters(exp);
 					if (pos != NOTFOUND) {
-						formString[pos-3] = flag + '0';
+						formString[pos] = flag + '0';
 					}
 				}
 			}

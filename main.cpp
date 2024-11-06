@@ -7,7 +7,7 @@
 # include "Analyser.h"
 # include "MyTree.h"
 
-int main(int argc, char* argv[]) {
+int main00(int argc, char* argv[]) {
 	Analyzer analyzer;
 	std::string filename;
 	if (argc == 1) {
@@ -52,10 +52,10 @@ int main01() {
 	return 0;
 }
 
-int main02() {
+int main() {
 	Analyser analyser;
 	analyser.readV("test1.v");
 	analyser.analyse();
-	analyser.writeBlif("test1.blif");
+	analyser.writeBlif("test4.blif");
 	return 0;
 }

@@ -61,7 +61,7 @@ private:
 	void MRLCS_Basic(int, std::array<int, GateTypeNums>& , const std::array<bool, GateTypeNums>&);
 	void MRLCS(int, std::array<int, GateTypeNums>&, const std::array<bool, GateTypeNums>&);
 	void setGateCycle_MRLCS(Gate&, int);
-	int getGateCycle_MRLCS(const Gate& gate);
+	int getGateCycle_MRLCS(const Gate&);
 public:
 	std::string model;
 	std::vector<wireType> inputs;
