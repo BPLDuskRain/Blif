@@ -54,7 +54,7 @@ private:
 	//bool preInSet(const std::set<Gate*>&, const Gate*);
 	bool presAreScheduled(const Gate*);
 	void cycleConfirmReset();
-	void MLRCS(std::array<int, GateTypeNums>);
+	void MLRCS(std::array<int, GateTypeNums>, int flag);
 	bool srcEnough(const int)const;
 	bool srcsEnough(const std::vector<int>&)const;
 	std::vector<Gate*>::iterator elementRemove(Gate*);
@@ -79,7 +79,7 @@ public:
 	void cycleConfirm_ALAP();
 	void cycleConfirm_Hu(int, int flag = UNIQUE);
 	int cycleConfirm_MLRCS(int);//·ÏÆú
-	int cycleConfirm_MLRCS(std::array<int, GateTypeNums>);
+	int cycleConfirm_MLRCS(std::array<int, GateTypeNums>, int flag);
 	std::array<int, 3> cycleConfirm_MRLCS(int);
 	void writeMidForm(int flag = UNIQUE);
 };

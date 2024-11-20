@@ -545,14 +545,14 @@ int Analyzer::cycleConfirm_MLRCS(int limit) {
 	return getMaxCycle(WEIGHT);
 }
 
-int Analyzer::cycleConfirm_MLRCS(std::array<int, GateTypeNums> limits) {
+int Analyzer::cycleConfirm_MLRCS(std::array<int, GateTypeNums> limits, int flag) {
 	cycleConfirmReset();
 	getHuArray();
-	MLRCS(limits);
-	return getMaxCycle(WEIGHT);
+	MLRCS(limits, flag);
+	return getMaxCycle(flag);
 }
 
-void Analyzer::MLRCS(std::array<int, GateTypeNums> limits) {
+void Analyzer::MLRCS(std::array<int, GateTypeNums> limits, int flag) {
 	//MLRCS算法主体，需要先获取huArray
 	std::vector<int> lmts(limits.begin(), limits.end());
 	int cycle = 0;
@@ -606,20 +606,36 @@ void Analyzer::MLRCS(std::array<int, GateTypeNums> limits) {
 		else {
 		NotEnough:
 			//遍历set，如果执行完毕将其踢出huArrry和set，归还资源
-			for (auto setP = set.begin(); setP != set.end();) {
-				if ((*setP)->cycle + (*setP)->gateType - 1 == cycle) {
+			switch (flag) {
+			case UNIQUE:
+				for (auto setP = set.begin(); setP != set.end();) {
 					(*setP)->scheduled = true;
 					switch ((*setP)->gateType) {
 					case AND: if (lmts[0] != INF) ++lmts[0]; break;
-					case OR : if (lmts[1] != INF) ++lmts[1]; break;
+					case OR: if (lmts[1] != INF) ++lmts[1]; break;
 					case NOT: if (lmts[2] != INF) ++lmts[2]; break;
 					}
 					index = elementRemove((*setP));
 					setP = set.erase(setP);
 				}
-				else {
-					++setP;
+				break;
+			case WEIGHT:
+				for (auto setP = set.begin(); setP != set.end();) {
+					if ((*setP)->cycle + (*setP)->gateType - 1 == cycle) {
+						(*setP)->scheduled = true;
+						switch ((*setP)->gateType) {
+						case AND: if (lmts[0] != INF) ++lmts[0]; break;
+						case OR: if (lmts[1] != INF) ++lmts[1]; break;
+						case NOT: if (lmts[2] != INF) ++lmts[2]; break;
+						}
+						index = elementRemove((*setP));
+						setP = set.erase(setP);
+					}
+					else {
+						++setP;
+					}
 				}
+				break;
 			}
 			++cycle;
 			index = huArray.begin();
@@ -674,7 +690,7 @@ std::vector<Analyzer::Gate*>::iterator Analyzer::elementRemove(Gate* gate) {
 
 std::array<int, GateTypeNums> Analyzer::cycleConfirm_MRLCS(int limit) {
 	//判断无限资源所需轮次
-	const int minCycle = cycleConfirm_MLRCS({INF, INF, INF});
+	const int minCycle = cycleConfirm_MLRCS({INF, INF, INF}, WEIGHT);
 	//无限资源下轮次大于要求则不能完成
 	if (minCycle > limit) {
 		return { INF, INF, INF };
@@ -700,7 +716,7 @@ std::array<int, GateTypeNums> Analyzer::cycleConfirm_MRLCS(int limit) {
 	}
 
 	//为需要的门置1试探
-	int cycle = cycleConfirm_MLRCS(resourseNum);
+	int cycle = cycleConfirm_MLRCS(resourseNum, WEIGHT);
 	if (cycle <= limit) return resourseNum;
 
 	MRLCS(limit, resourseNum, needGate);
@@ -709,14 +725,14 @@ std::array<int, GateTypeNums> Analyzer::cycleConfirm_MRLCS(int limit) {
 
 //MRLCS：暴力解法，存在死循环情况弃用
 void Analyzer::MRLCS_Basic(int limit, std::array<int, GateTypeNums>& resourseNum, const std::array<bool, GateTypeNums>& needGate) {
-	int cycle = cycleConfirm_MLRCS(resourseNum);
+	int cycle = cycleConfirm_MLRCS(resourseNum, WEIGHT);
 	int index = 0;
 	//资源由小到大，轮次则由大到小
 	//轮次正好小于等于限制，即为最小资源
 	while (true) {
 		//尝试增加资源
 		if (needGate[index]) ++resourseNum[index];
-		int tmp = cycleConfirm_MLRCS(resourseNum);
+		int tmp = cycleConfirm_MLRCS(resourseNum, WEIGHT);
 		//增加资源有效，覆写cycle
 		if (tmp < cycle) cycle = tmp;
 		//无效，撤回增加资源

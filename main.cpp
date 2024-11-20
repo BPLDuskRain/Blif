@@ -7,7 +7,7 @@
 # include "Analyser.h"
 # include "MyTree.h"
 
-int main00(int argc, char* argv[]) {
+int main(int argc, char* argv[]) {
 	Analyzer analyzer;
 	std::string filename;
 	if (argc == 1) {
@@ -19,10 +19,10 @@ int main00(int argc, char* argv[]) {
 		std::cerr << "No enough ParaMeters" << std::endl;
 		return -1;
 	}
-	//std::array<int, GateTypeNums> paras = {0};
-	//for (int i = 1 + 1; i < argc; ++i) {
-	//	paras[i - 1 - 1] = (std::stoi(argv[i]));
-	//}
+	std::array<int, GateTypeNums> paras = {0};
+	for (int i = 1 + 1; i < argc; ++i) {
+		paras[i - 1 - 1] = (std::stoi(argv[i]));
+	}
 	int para = std::stoi(argv[2]);
 
 	int cycle = 0;
@@ -33,13 +33,13 @@ int main00(int argc, char* argv[]) {
 		//analyzer.cycleConfirm_ASAP();
 		//analyzer.cycleConfirm_ALAP();
 		//analyzer.cycleConfirm_Hu(3);
-		//cycle = analyzer.cycleConfirm_MLRCS(paras);
-		std::array<int, GateTypeNums> res = analyzer.cycleConfirm_MRLCS(para);
+		cycle = analyzer.cycleConfirm_MLRCS(paras, UNIQUE);
+		//std::array<int, GateTypeNums> res = analyzer.cycleConfirm_MRLCS(para);
 		//analyzer.writeMidForm(UNIQUE);
-		analyzer.writeMidForm(WEIGHT);
-		std::cout << "&: " << res[0] << std::endl;
-		std::cout << "|: " << res[1] << std::endl;
-		std::cout << "!: " << res[2] << std::endl;
+		analyzer.writeMidForm(UNIQUE);
+		//std::cout << "&: " << res[0] << std::endl;
+		//std::cout << "|: " << res[1] << std::endl;
+		//std::cout << "!: " << res[2] << std::endl;
 	}
 	return 0;
 }
@@ -52,7 +52,7 @@ int main01() {
 	return 0;
 }
 
-int main() {
+int main02() {
 	Analyser analyser;
 	analyser.readV("test1.v");
 	analyser.analyse();
